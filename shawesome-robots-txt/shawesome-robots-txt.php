@@ -136,18 +136,34 @@ function shawesome_robots_txt_site_rule_lines( $site_id ) {
 	if ( $rules['crawl_delay'] ) {
 		$lines[] = 'Crawl-delay: ' . $rules['crawl_delay'];
 	}
-	if ( ! $rules['css_js'] ) {
+	foreach ( array( 'css_js', 'images', 'pdfs' ) as $key ) {
+		if ( ! $rules[ $key ] ) {
+			$lines = array_merge( $lines, shawesome_robots_txt_site_rule_lines_for( $key ) );
+		}
+	}
+
+	return $lines;
+}
+
+/**
+ * Disallow lines that block a type of resource.
+ *
+ * @param string $key 'css_js', 'images' or 'pdfs'.
+ * @return string[]
+ */
+function shawesome_robots_txt_site_rule_lines_for( $key ) {
+	$lines = array();
+
+	if ( 'css_js' === $key ) {
 		foreach ( array( 'css', 'js' ) as $ext ) {
 			$lines[] = 'Disallow: /*.' . $ext . '$';
 			$lines[] = 'Disallow: /*.' . $ext . '?';
 		}
-	}
-	if ( ! $rules['images'] ) {
+	} elseif ( 'images' === $key ) {
 		foreach ( array( 'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'svg' ) as $ext ) {
 			$lines[] = 'Disallow: /*.' . $ext . '$';
 		}
-	}
-	if ( ! $rules['pdfs'] ) {
+	} elseif ( 'pdfs' === $key ) {
 		$lines[] = 'Disallow: /*.pdf$';
 	}
 
