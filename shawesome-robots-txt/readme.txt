@@ -49,7 +49,7 @@ The Disallow lines are added as a group for all crawlers (`User-agent: *`). Craw
 
 Yoast SEO and All in One SEO change the robots.txt output. In the settings you choose how your content is combined with them:
 
-* **Base** (default) – the content replaces the WordPress default; Yoast SEO appends its sitemap, All in One SEO rebuilds the rules (comments and Sitemap lines are dropped). Duplicate Sitemap lines are removed.
+* **Base** (default) – the content replaces the WordPress default; Yoast SEO removes the WordPress default rules (`User-agent: *`, `Disallow: /wp-admin/`, `Allow: /wp-admin/admin-ajax.php` in exactly this order) and appends its own rules and sitemap, All in One SEO rebuilds the rules (comments and Sitemap lines are dropped). Duplicate Sitemap lines are removed.
 * **Exact** – the content is delivered as is, after all SEO plugins have run. Sites without a custom robots.txt (no content in the editor and no file) keep the one from WordPress and the SEO plugins.
 
 **Physical robots.txt**

@@ -29,7 +29,7 @@ The domain with dots (`www.example.com.txt`) is accepted as an unambiguous alter
 
 ## Yoast SEO and All in One SEO
 
-Both plugins change the robots.txt output: Yoast SEO appends its rules and sitemap, All in One SEO rebuilds the rules and drops comments and Sitemap lines. In the settings you choose the mode:
+Both plugins change the robots.txt output: Yoast SEO removes the WordPress default rules (`User-agent: *`, `Disallow: /wp-admin/`, `Allow: /wp-admin/admin-ajax.php` in exactly this order) and appends its own rules and sitemap, All in One SEO rebuilds the rules and drops comments and Sitemap lines. In the settings you choose the mode:
 
 - **Base** (default) – the content replaces the WordPress default, SEO plugins may add to it; duplicate Sitemap lines are removed
 - **Exact** – the content is delivered as is, after all SEO plugins have run; sites without a custom robots.txt (no content in the editor and no file) keep the one from WordPress and the SEO plugins

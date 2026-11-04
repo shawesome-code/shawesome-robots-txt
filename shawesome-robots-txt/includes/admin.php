@@ -152,13 +152,15 @@ function shawesome_robots_txt_load_page() {
 }
 
 /**
- * Example rules for a site: the WordPress default plus its sitemap.
+ * Example rules for a site: the WordPress default plus its sitemap. Allow
+ * comes first: crawlers do not care about the order (the most specific rule
+ * wins), but Yoast SEO removes the default block in its exact order.
  *
  * @param int $site_id Site ID.
  * @return string
  */
 function shawesome_robots_txt_example_rules( $site_id ) {
-	return "User-agent: *\nDisallow: /wp-admin/\nAllow: /wp-admin/admin-ajax.php\n\nSitemap: " . get_home_url( $site_id, 'wp-sitemap.xml' );
+	return "User-agent: *\nAllow: /wp-admin/admin-ajax.php\nDisallow: /wp-admin/\n\nSitemap: " . get_home_url( $site_id, 'wp-sitemap.xml' );
 }
 
 /**
@@ -510,7 +512,7 @@ function shawesome_robots_txt_render_warnings() {
 	}
 
 	if ( $any_seo && 'base' === $settings['mode'] ) {
-		shawesome_robots_txt_notice( esc_html__( 'An SEO plugin is active. In "Base" mode, Yoast SEO appends its rules and sitemap to the robots.txt, and All in One SEO rebuilds it: comments and Sitemap lines are dropped. Use "Exact" mode if the content should be delivered as is.', 'shawesome-robots-txt' ), 'warning', true );
+		shawesome_robots_txt_notice( esc_html__( 'An SEO plugin is active. In "Base" mode, Yoast SEO removes the WordPress default rules and appends its own rules and sitemap, and All in One SEO rebuilds the robots.txt: comments and Sitemap lines are dropped. Use "Exact" mode if the content should be delivered as is.', 'shawesome-robots-txt' ), 'warning', true );
 	}
 }
 
@@ -641,6 +643,13 @@ function shawesome_robots_txt_render_editor( $site_id ) {
 
 	if ( $settings['respect_public'] && ! shawesome_robots_txt_is_public( $site_id ) ) {
 		shawesome_robots_txt_notice( esc_html__( 'This site is hidden from search engines, so the custom robots.txt is ignored and WordPress delivers its default robots.txt.', 'shawesome-robots-txt' ), 'warning', true );
+	}
+
+	// Yoast SEO removes this block wherever it is (same pattern as in its robots.txt integration).
+	$yoast_block = '`User-agent: \*[\r\n]+Disallow: /wp-admin/[\r\n]+Allow: /wp-admin/admin-ajax\.php[\r\n]+`';
+	if ( 'base' === $settings['mode'] && in_array( 'Yoast SEO', shawesome_robots_txt_active_seo_plugins( $site_id ), true )
+		&& preg_match( $yoast_block, (string) $resolved['content'] . "\n" ) ) {
+		shawesome_robots_txt_notice( esc_html__( 'In "Base" mode, Yoast SEO removes the lines "User-agent: *", "Disallow: /wp-admin/" and "Allow: /wp-admin/admin-ajax.php" when they appear in this order. Put the Allow line first (crawlers do not care about the order) or use "Exact" mode.', 'shawesome-robots-txt' ), 'warning', true );
 	}
 
 	if ( 'file' === $resolved['source'] ) :
