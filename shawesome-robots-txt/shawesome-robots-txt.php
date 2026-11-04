@@ -88,13 +88,16 @@ function shawesome_robots_txt_is_public( $site_id ) {
  *   (Yoast SEO, All in One SEO …) have run.
  * - respect_public: sites set to "Discourage search engines" keep the
  *   WordPress default instead of the file.
+ * - path_sites: in a network, add rules for the sites with a path to the
+ *   robots.txt of their host (see shawesome_robots_txt_path_rules()).
  *
- * @return array{mode: string, respect_public: bool}
+ * @return array{mode: string, respect_public: bool, path_sites: bool}
  */
 function shawesome_robots_txt_get_settings() {
 	$defaults = array(
 		'mode'           => 'base',
 		'respect_public' => true,
+		'path_sites'     => true,
 	);
 
 	$settings = wp_parse_args( (array) get_site_option( SHAWESOME_ROBOTS_TXT_OPTION, array() ), $defaults );
@@ -103,8 +106,77 @@ function shawesome_robots_txt_get_settings() {
 		$settings['mode'] = $defaults['mode'];
 	}
 	$settings['respect_public'] = (bool) $settings['respect_public'];
+	$settings['path_sites']     = (bool) $settings['path_sites'];
 
 	return $settings;
+}
+
+/**
+ * Sites of the network whose address is a path on the given host
+ * (e.g. example.com/blog/). Crawlers only read the robots.txt of the host,
+ * so their rules belong there.
+ *
+ * @param string $host Host name.
+ * @return WP_Site[]
+ */
+function shawesome_robots_txt_path_sites( $host ) {
+	if ( ! is_multisite() ) {
+		return array();
+	}
+
+	$sites = array();
+	foreach ( get_sites(
+		array(
+			'number'   => 0,
+			'deleted'  => 0,
+			'archived' => 0,
+			'spam'     => 0,
+			'domain'   => $host,
+		)
+	) as $site ) {
+		if ( '/' !== $site->path ) {
+			$sites[] = $site;
+		}
+	}
+
+	return $sites;
+}
+
+/**
+ * Rules for the sites with a path on a host: Disallow for sites hidden from
+ * search engines (WordPress only adds noindex to their pages), Sitemap for
+ * public sites. The Disallow lines get their own group for all crawlers, so
+ * they do not end up in the group of a single crawler. Crawlers with their
+ * own group in the robots.txt do not read it.
+ *
+ * @param string $host Host name.
+ * @return string Rules, empty if there are no such sites.
+ */
+function shawesome_robots_txt_path_rules( $host ) {
+	$disallow = array();
+	$sitemaps = array();
+
+	foreach ( shawesome_robots_txt_path_sites( $host ) as $site ) {
+		if ( '1' === (string) $site->public ) {
+			$sitemaps[] = 'Sitemap: ' . set_url_scheme( 'http://' . $site->domain . $site->path . 'wp-sitemap.xml' );
+		} else {
+			$disallow[] = 'Disallow: ' . $site->path;
+		}
+	}
+
+	if ( ! $disallow && ! $sitemaps ) {
+		return '';
+	}
+
+	$rules = '# Sites with a path, added by shawesome robots.txt';
+	if ( $disallow ) {
+		$rules .= "\nUser-agent: *\n" . implode( "\n", $disallow );
+	}
+	if ( $sitemaps ) {
+		$rules .= "\n\n" . implode( "\n", $sitemaps );
+	}
+
+	return $rules;
 }
 
 /**
@@ -313,6 +385,25 @@ function shawesome_robots_txt_filter_dedupe( $output ) {
 }
 
 /**
+ * Filter callback for 'robots_txt' after all SEO plugins, in both modes: add
+ * the rules for the sites with a path on this host.
+ *
+ * @param string $output robots.txt output.
+ * @return string
+ */
+function shawesome_robots_txt_filter_path_rules( $output ) {
+	$site_id = get_current_blog_id();
+
+	if ( ! shawesome_robots_txt_serves_own( $site_id ) ) {
+		return $output;
+	}
+
+	$rules = shawesome_robots_txt_path_rules( shawesome_robots_txt_host( $site_id ) );
+
+	return '' === $rules ? $output : rtrim( $output ) . "\n\n" . $rules . "\n";
+}
+
+/**
  * Register the robots.txt filters according to the selected mode.
  *
  * 'exact' runs at PHP_INT_MAX, after Yoast SEO (99999) and All in One SEO
@@ -326,6 +417,11 @@ function shawesome_robots_txt_register_filters() {
 	$priority = (int) apply_filters( 'shawesome_robots_txt_priority', $priority, $settings['mode'] );
 
 	add_filter( 'robots_txt', 'shawesome_robots_txt_filter_robots_txt', $priority, 2 );
+
+	// Added first, so that duplicate Sitemap lines are removed afterwards.
+	if ( $settings['path_sites'] && is_multisite() ) {
+		add_filter( 'robots_txt', 'shawesome_robots_txt_filter_path_rules', PHP_INT_MAX );
+	}
 
 	if ( 'base' === $settings['mode'] ) {
 		add_filter( 'robots_txt', 'shawesome_robots_txt_filter_dedupe', PHP_INT_MAX );

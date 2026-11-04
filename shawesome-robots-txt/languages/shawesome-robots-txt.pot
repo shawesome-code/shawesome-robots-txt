@@ -11,7 +11,7 @@ msgstr ""
 "X-Domain: shawesome-robots-txt\n"
 
 #. Plugin Name of the plugin
-#: includes/admin.php:364
+#: includes/admin.php:407
 msgid "shawesome robots.txt – Per-Site Rules for Single Sites and Multisite"
 msgstr ""
 
@@ -19,246 +19,278 @@ msgstr ""
 msgid "Its own robots.txt for a single site or for every site of a multisite network – edited in the admin, or deployed as a file to /wp-content/shawesome-robots-txt/ (e.g. www.example.com → www-example-com.txt), which takes precedence."
 msgstr ""
 
-#: includes/admin.php:106 includes/admin.php:107 includes/admin.php:710
+#: includes/admin.php:106 includes/admin.php:107 includes/admin.php:770
 msgid "robots.txt"
 msgstr ""
 
-#: includes/admin.php:148
+#: includes/admin.php:188
 msgid "Settings"
 msgstr ""
 
-#: includes/admin.php:162
+#: includes/admin.php:202
 msgid "Sorry, you are not allowed to manage the robots.txt."
 msgstr ""
 
-#: includes/admin.php:181
+#: includes/admin.php:221
 msgid "Site not found."
 msgstr ""
 
 #. translators: %s: version number of the plugin
-#: includes/admin.php:366
+#: includes/admin.php:409
 msgid "Version %s"
 msgstr ""
 
-#: includes/admin.php:370
+#: includes/admin.php:413
 msgid "All sites"
 msgstr ""
 
 #. translators: %s: host name of the site
-#: includes/admin.php:373 includes/admin.php:384
+#: includes/admin.php:416 includes/admin.php:427
 msgid "robots.txt for %s"
 msgstr ""
 
 #. translators: %s: new file name of the physical robots.txt
-#: includes/admin.php:416
+#: includes/admin.php:459
 msgid "The physical robots.txt was renamed to %s."
 msgstr ""
 
-#: includes/admin.php:419
+#: includes/admin.php:462
 msgid "Settings saved."
 msgstr ""
 
-#: includes/admin.php:420
+#: includes/admin.php:463
 msgid "robots.txt saved."
 msgstr ""
 
-#: includes/admin.php:421
+#: includes/admin.php:464
 msgid "File copied into the database. Delete the file to make the database content active."
 msgstr ""
 
-#: includes/admin.php:422
+#: includes/admin.php:465
 msgid "The file could not be read."
 msgstr ""
 
-#: includes/admin.php:424
+#: includes/admin.php:467
 msgid "Its content is now stored in the database."
 msgstr ""
 
-#: includes/admin.php:425
+#: includes/admin.php:468
 msgid "The physical robots.txt could not be renamed. Rename or delete it via FTP or your hosting panel."
 msgstr ""
 
 #. translators: %s: URL of the robots.txt at the root of the host
-#: includes/admin.php:444
+#: includes/admin.php:487
 msgid "The address of this site contains a path. Crawlers only request the robots.txt at the root of the host (%s), which WordPress cannot deliver here, so the plugin does nothing."
 msgstr ""
 
-#: includes/admin.php:470
+#: includes/admin.php:513
 msgid "An SEO plugin is active. In \"Base\" mode, Yoast SEO appends its rules and sitemap to the robots.txt, and All in One SEO rebuilds it: comments and Sitemap lines are dropped. Use \"Exact\" mode if the content should be delivered as is."
 msgstr ""
 
 #. translators: %s: path of the physical robots.txt file
-#: includes/admin.php:491
+#: includes/admin.php:534
 msgid "A physical robots.txt exists at %s. The web server delivers it directly, so WordPress and this plugin are never asked."
 msgstr ""
 
-#: includes/admin.php:495
+#: includes/admin.php:538
 msgid "View it"
 msgstr ""
 
-#: includes/admin.php:501
+#: includes/admin.php:544
 msgid "Rename it to use the robots.txt of this plugin. The renamed file stays in the web root and can be restored at any time."
 msgstr ""
 
-#: includes/admin.php:506
+#: includes/admin.php:549
 msgid "Copy into the editor of the main site and rename"
 msgstr ""
 
-#: includes/admin.php:506
+#: includes/admin.php:549
 msgid "Copy into the editor and rename"
 msgstr ""
 
-#: includes/admin.php:508
+#: includes/admin.php:551
 msgid "Rename to _old-robots.txt"
 msgstr ""
 
-#: includes/admin.php:512
+#: includes/admin.php:555
 msgid "WordPress cannot rename it on this server. Rename or delete it via FTP or your hosting panel."
 msgstr ""
 
-#: includes/admin.php:528
+#: includes/admin.php:571
 msgid "Mode"
 msgstr ""
 
 #. translators: %s: name of the mode "Base"
-#: includes/admin.php:536
+#: includes/admin.php:579
 msgid "%s – the content replaces the WordPress default. SEO plugins may add their rules and sitemap; duplicate Sitemap lines are removed."
 msgstr ""
 
-#: includes/admin.php:537
+#: includes/admin.php:580
 msgctxt "robots.txt mode"
 msgid "Base"
 msgstr ""
 
 #. translators: %s: name of the mode "Exact"
-#: includes/admin.php:546
+#: includes/admin.php:589
 msgid "%s – a custom robots.txt is delivered as is. SEO plugins (Yoast SEO, All in One SEO …) cannot change it. Sites without a custom robots.txt keep the one from WordPress and the SEO plugins."
 msgstr ""
 
-#: includes/admin.php:547
+#: includes/admin.php:590
 msgctxt "robots.txt mode"
 msgid "Exact"
 msgstr ""
 
-#: includes/admin.php:555
+#: includes/admin.php:598
 msgid "Search engine visibility"
 msgstr ""
 
-#: includes/admin.php:559
+#: includes/admin.php:602
 msgid "Ignore the custom robots.txt on sites set to \"Discourage search engines from indexing this site\" (WordPress delivers its default robots.txt)."
 msgstr ""
 
-#: includes/admin.php:564
+#: includes/admin.php:608
+msgid "Sites with a path"
+msgstr ""
+
+#: includes/admin.php:613
+msgid "Add rules for sites whose address contains a path (example.com/blog/) to the robots.txt of their host, also in \"Exact\" mode: Disallow for sites hidden from search engines, Sitemap for public sites."
+msgstr ""
+
+#: includes/admin.php:615
+msgid "The Disallow lines are added as a group for all crawlers. Crawlers that have a group of their own in the robots.txt do not read it."
+msgstr ""
+
+#: includes/admin.php:620
 msgid "Save settings"
 msgstr ""
 
-#: includes/admin.php:587
+#: includes/admin.php:643
 msgid "This site is hidden from search engines, so the custom robots.txt is ignored and WordPress delivers its default robots.txt."
 msgstr ""
 
 #. translators: %s: file path
-#: includes/admin.php:594
+#: includes/admin.php:650
 msgid "This site is overridden by the file %s. The file is delivered; the database content below is only used once the file is removed."
 msgstr ""
 
-#: includes/admin.php:601
+#: includes/admin.php:657
 msgid "File content (read-only)"
 msgstr ""
 
-#: includes/admin.php:607
+#: includes/admin.php:663
 msgid "Copy file into database"
 msgstr ""
 
-#: includes/admin.php:613
+#: includes/admin.php:669
 msgid "Database content"
 msgstr ""
 
-#: includes/admin.php:618
-msgid "Leave empty to keep the robots.txt generated by WordPress and SEO plugins."
+#: includes/admin.php:675
+msgid "Replace the current content with the example rules?"
 msgstr ""
 
-#: includes/admin.php:619
+#: includes/admin.php:675
+msgid "Insert example rules"
+msgstr ""
+
+#: includes/admin.php:676
+msgid "Add: block AI training, allow AI search"
+msgstr ""
+
+#: includes/admin.php:678
+msgid "The buttons only change the field; nothing is saved until you click \"Save robots.txt\". Leave empty to keep the robots.txt generated by WordPress and SEO plugins."
+msgstr ""
+
+#: includes/admin.php:679
 msgid "Save robots.txt"
 msgstr ""
 
-#: includes/admin.php:641
+#: includes/admin.php:701
 msgid "Live robots.txt"
 msgstr ""
 
 #. translators: %s: error message or HTTP status code
-#: includes/admin.php:647
+#: includes/admin.php:707
 msgid "The live robots.txt could not be loaded (%s). The server may block requests to itself."
 msgstr ""
 
-#: includes/admin.php:657
+#: includes/admin.php:717
 msgid "Open live robots.txt"
 msgstr ""
 
 #. translators: %s: URL of the robots.txt at the root of the host
-#: includes/admin.php:673
+#: includes/admin.php:733
 msgid "The address of this site contains a path. Crawlers only request the robots.txt at the root of the host, so the rules for this site belong in %s."
 msgstr ""
 
-#: includes/admin.php:693
+#: includes/admin.php:753
 msgid "Sites"
 msgstr ""
 
 #. translators: %s: directory path
-#: includes/admin.php:698
+#: includes/admin.php:758
 msgid "Edit the robots.txt of a site here. Optionally, a file in %s overrides the database content, e.g. for deployments. The hyphenated file name takes precedence; the name with dots is an unambiguous alternative."
 msgstr ""
 
-#: includes/admin.php:706
+#: includes/admin.php:766
 msgid "Site"
 msgstr ""
 
-#: includes/admin.php:707
+#: includes/admin.php:767
 msgctxt "where the robots.txt comes from"
 msgid "Source"
 msgstr ""
 
-#: includes/admin.php:708
+#: includes/admin.php:768
 msgid "Override file name"
 msgstr ""
 
-#: includes/admin.php:709
+#: includes/admin.php:769
 msgid "SEO plugins"
 msgstr ""
 
-#: includes/admin.php:727
+#: includes/admin.php:787
 msgctxt "edit the robots.txt of a site"
 msgid "Edit"
 msgstr ""
 
 #. translators: %s: host name
-#: includes/admin.php:736
+#: includes/admin.php:796
 msgid "Served by the robots.txt of %s"
 msgstr ""
 
+#: includes/admin.php:798
+msgid "Sitemap line added"
+msgstr ""
+
+#: includes/admin.php:798
+msgid "Disallow line added"
+msgstr ""
+
 #. translators: %s: names of the active SEO plugins
-#: includes/admin.php:741
+#: includes/admin.php:804
 msgid "Not set – generated by WordPress and %s"
 msgstr ""
 
-#: includes/admin.php:743
+#: includes/admin.php:806
 msgid "Not set – generated by WordPress"
 msgstr ""
 
-#: includes/admin.php:745
+#: includes/admin.php:808
 msgid "Ignored – site hidden from search engines"
 msgstr ""
 
 #. translators: %s: file name
-#: includes/admin.php:748
+#: includes/admin.php:811
 msgid "File: %s"
 msgstr ""
 
-#: includes/admin.php:750
+#: includes/admin.php:813
 msgctxt "where the robots.txt comes from"
 msgid "Database"
 msgstr ""
 
-#: includes/admin.php:765
+#: includes/admin.php:828
 msgctxt "open the live robots.txt"
 msgid "Open"
 msgstr ""
