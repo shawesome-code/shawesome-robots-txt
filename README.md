@@ -34,14 +34,14 @@ Both plugins change the robots.txt output: Yoast SEO removes the WordPress defau
 - **Base** (default) – the content replaces the WordPress default, SEO plugins may add to it; duplicate Sitemap lines are removed
 - **Exact** – the content is delivered as is, after all SEO plugins have run; sites without a custom robots.txt (no content in the editor and no file) keep the one from WordPress and the SEO plugins
 
-In a network, the same page lists all sites with the source of their robots.txt, the override file name, detected SEO plugins and a link to the live robots.txt.
+The default mode is set in the settings; each site can choose its own in its editor. In a network, the robots.txt tab lists all sites with their mode, the source of their robots.txt, the override file name, detected SEO plugins and a status (all crawlers blocked, sitemaps linked, AI training blocked, delivery problems), which is checked from the live robots.txt and kept for a configurable time.
 
 ## For developers
 
 - Constant `SHAWESOME_ROBOTS_TXT_DIR` / filter `shawesome_robots_txt_dir` – directory for override files
 - Filter `shawesome_robots_txt_candidate_files` – candidate file paths per domain
 - Filter `shawesome_robots_txt_priority` – priority of the `robots_txt` filter
-- Site option `shawesome_robots_txt_content` – stored content (not autoloaded)
+- Site options `shawesome_robots_txt_content`, `shawesome_robots_txt_mode`, `shawesome_robots_txt_status` – content, mode and status (not autoloaded)
 
 ## Requirements
 

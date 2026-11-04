@@ -27,6 +27,84 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'SHAWESOME_ROBOTS_TXT_VERSION', '1.0.0' );
 define( 'SHAWESOME_ROBOTS_TXT_OPTION', 'shawesome_robots_txt_settings' );
 define( 'SHAWESOME_ROBOTS_TXT_CONTENT_OPTION', 'shawesome_robots_txt_content' );
+define( 'SHAWESOME_ROBOTS_TXT_MODE_OPTION', 'shawesome_robots_txt_mode' );
+define( 'SHAWESOME_ROBOTS_TXT_STATUS_OPTION', 'shawesome_robots_txt_status' );
+
+/**
+ * Option of a site (the current site on a single site).
+ *
+ * @param int    $site_id Site ID (ignored on a single site).
+ * @param string $name    Option name.
+ * @param mixed  $default Value if the option does not exist.
+ * @return mixed
+ */
+function shawesome_robots_txt_get_site_option( $site_id, $name, $default = '' ) {
+	return is_multisite() ? get_blog_option( $site_id, $name, $default ) : get_option( $name, $default );
+}
+
+/**
+ * Store an option of a site, not autoloaded (only needed for robots.txt
+ * requests and the admin). An empty value deletes the option.
+ *
+ * @param int    $site_id Site ID (ignored on a single site).
+ * @param string $name    Option name.
+ * @param mixed  $value   Value.
+ */
+function shawesome_robots_txt_set_site_option( $site_id, $name, $value ) {
+	if ( is_multisite() ) {
+		switch_to_blog( $site_id );
+	}
+	if ( '' === $value || null === $value || array() === $value ) {
+		delete_option( $name );
+	} else {
+		update_option( $name, $value, false );
+	}
+	if ( is_multisite() ) {
+		restore_current_blog();
+	}
+}
+
+/**
+ * Mode chosen for a site: 'base', 'exact' or '' (use the default mode).
+ *
+ * @param int $site_id Site ID (ignored on a single site).
+ * @return string
+ */
+function shawesome_robots_txt_site_mode( $site_id ) {
+	$mode = (string) shawesome_robots_txt_get_site_option( $site_id, SHAWESOME_ROBOTS_TXT_MODE_OPTION );
+
+	return in_array( $mode, array( 'base', 'exact' ), true ) ? $mode : '';
+}
+
+/**
+ * Mode in effect for a site: its own or the default mode.
+ *
+ * @param int $site_id Site ID (ignored on a single site).
+ * @return string 'base' or 'exact'.
+ */
+function shawesome_robots_txt_mode( $site_id ) {
+	$mode = shawesome_robots_txt_site_mode( $site_id );
+	if ( '' === $mode ) {
+		$settings = shawesome_robots_txt_get_settings();
+		$mode     = $settings['mode'];
+	}
+
+	return $mode;
+}
+
+/**
+ * Crawlers that collect content for AI training, used for the example block
+ * and the status. AI search crawlers (OAI-SearchBot, Claude-SearchBot,
+ * PerplexityBot) are not listed on purpose.
+ *
+ * Sources: the crawler documentation of OpenAI, Anthropic, Google, Apple and
+ * Common Crawl (checked 2026-11).
+ *
+ * @return string[] User agent tokens.
+ */
+function shawesome_robots_txt_ai_agents() {
+	return array( 'GPTBot', 'ClaudeBot', 'Google-Extended', 'Applebot-Extended', 'CCBot' );
+}
 
 /**
  * Directory holding the per-site robots.txt files.
@@ -82,22 +160,26 @@ function shawesome_robots_txt_is_public( $site_id ) {
 /**
  * Settings, merged with the defaults. In a network they apply to all sites.
  *
- * - mode 'base' (default): the file replaces the WordPress default, SEO
+ * - mode: the default mode, each site can choose its own.
+ *   'base' (default): the content replaces the WordPress default, SEO
  *   plugins may still add their rules and sitemaps.
- * - mode 'exact': the file is delivered as is, after all SEO plugins
+ *   'exact': the content is delivered as is, after all SEO plugins
  *   (Yoast SEO, All in One SEO …) have run.
  * - respect_public: sites set to "Discourage search engines" keep the
  *   WordPress default instead of the file.
  * - path_sites: in a network, add rules for the sites with a path to the
  *   robots.txt of their host (see shawesome_robots_txt_path_rules()).
+ * - status_hours: how long the status of a robots.txt is kept before it is
+ *   checked again (1 to 720 hours).
  *
- * @return array{mode: string, respect_public: bool, path_sites: bool}
+ * @return array{mode: string, respect_public: bool, path_sites: bool, status_hours: int}
  */
 function shawesome_robots_txt_get_settings() {
 	$defaults = array(
 		'mode'           => 'base',
 		'respect_public' => true,
 		'path_sites'     => true,
+		'status_hours'   => 24,
 	);
 
 	$settings = wp_parse_args( (array) get_site_option( SHAWESOME_ROBOTS_TXT_OPTION, array() ), $defaults );
@@ -107,6 +189,7 @@ function shawesome_robots_txt_get_settings() {
 	}
 	$settings['respect_public'] = (bool) $settings['respect_public'];
 	$settings['path_sites']     = (bool) $settings['path_sites'];
+	$settings['status_hours']   = min( 720, max( 1, (int) $settings['status_hours'] ) );
 
 	return $settings;
 }
@@ -251,11 +334,7 @@ function shawesome_robots_txt_read_file( $file ) {
  * @return string Content, empty if none.
  */
 function shawesome_robots_txt_get_db_content( $site_id ) {
-	if ( is_multisite() ) {
-		return (string) get_blog_option( $site_id, SHAWESOME_ROBOTS_TXT_CONTENT_OPTION, '' );
-	}
-
-	return (string) get_option( SHAWESOME_ROBOTS_TXT_CONTENT_OPTION, '' );
+	return (string) shawesome_robots_txt_get_site_option( $site_id, SHAWESOME_ROBOTS_TXT_CONTENT_OPTION );
 }
 
 /**
@@ -268,18 +347,7 @@ function shawesome_robots_txt_get_db_content( $site_id ) {
 function shawesome_robots_txt_set_db_content( $site_id, $content ) {
 	$content = shawesome_robots_txt_normalize( (string) $content );
 
-	if ( is_multisite() ) {
-		switch_to_blog( $site_id );
-	}
-	if ( '' === trim( $content ) ) {
-		delete_option( SHAWESOME_ROBOTS_TXT_CONTENT_OPTION );
-	} else {
-		// Not autoloaded: only needed when robots.txt is requested.
-		update_option( SHAWESOME_ROBOTS_TXT_CONTENT_OPTION, $content, false );
-	}
-	if ( is_multisite() ) {
-		restore_current_blog();
-	}
+	shawesome_robots_txt_set_site_option( $site_id, SHAWESOME_ROBOTS_TXT_CONTENT_OPTION, '' === trim( $content ) ? '' : $content );
 }
 
 /**
@@ -404,7 +472,8 @@ function shawesome_robots_txt_filter_path_rules( $output ) {
 }
 
 /**
- * Register the robots.txt filters according to the selected mode.
+ * Register the robots.txt filters according to the mode of the current site.
+ * Runs on 'do_robotstxt', so only for robots.txt requests.
  *
  * 'exact' runs at PHP_INT_MAX, after Yoast SEO (99999) and All in One SEO
  * (10000), which would otherwise append to or rebuild the file. 'base' runs
@@ -413,8 +482,9 @@ function shawesome_robots_txt_filter_path_rules( $output ) {
  */
 function shawesome_robots_txt_register_filters() {
 	$settings = shawesome_robots_txt_get_settings();
-	$priority = 'exact' === $settings['mode'] ? PHP_INT_MAX : 10;
-	$priority = (int) apply_filters( 'shawesome_robots_txt_priority', $priority, $settings['mode'] );
+	$mode     = shawesome_robots_txt_mode( get_current_blog_id() );
+	$priority = 'exact' === $mode ? PHP_INT_MAX : 10;
+	$priority = (int) apply_filters( 'shawesome_robots_txt_priority', $priority, $mode );
 
 	add_filter( 'robots_txt', 'shawesome_robots_txt_filter_robots_txt', $priority, 2 );
 
@@ -423,11 +493,11 @@ function shawesome_robots_txt_register_filters() {
 		add_filter( 'robots_txt', 'shawesome_robots_txt_filter_path_rules', PHP_INT_MAX );
 	}
 
-	if ( 'base' === $settings['mode'] ) {
+	if ( 'base' === $mode ) {
 		add_filter( 'robots_txt', 'shawesome_robots_txt_filter_dedupe', PHP_INT_MAX );
 	}
 }
-add_action( 'plugins_loaded', 'shawesome_robots_txt_register_filters' );
+add_action( 'do_robotstxt', 'shawesome_robots_txt_register_filters' );
 
 if ( is_admin() ) {
 	require_once __DIR__ . '/includes/admin.php';

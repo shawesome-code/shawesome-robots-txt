@@ -11,7 +11,7 @@ msgstr ""
 "X-Domain: shawesome-robots-txt\n"
 
 #. Plugin Name of the plugin
-#: includes/admin.php:409
+#: includes/admin.php:688
 msgid "shawesome robots.txt – Per-Site Rules for Single Sites and Multisite"
 msgstr ""
 
@@ -19,282 +19,452 @@ msgstr ""
 msgid "Its own robots.txt for a single site or for every site of a multisite network – edited in the admin, or deployed as a file to /wp-content/shawesome-robots-txt/ (e.g. www.example.com → www-example-com.txt), which takes precedence."
 msgstr ""
 
-#: includes/admin.php:106 includes/admin.php:107 includes/admin.php:779
+#: includes/admin.php:106 includes/admin.php:107 includes/admin.php:186
 msgid "robots.txt"
 msgstr ""
 
-#: includes/admin.php:190
+#: includes/admin.php:158
+msgid "Checking …"
+msgstr ""
+
+#: includes/admin.php:159
+msgid "The check failed."
+msgstr ""
+
+#: includes/admin.php:187 includes/admin.php:452
 msgid "Settings"
 msgstr ""
 
-#: includes/admin.php:204
-msgid "Sorry, you are not allowed to manage the robots.txt."
+#: includes/admin.php:188
+msgid "FAQ"
 msgstr ""
 
-#: includes/admin.php:223
-msgid "Site not found."
-msgstr ""
-
-#. translators: %s: version number of the plugin
-#: includes/admin.php:411
-msgid "Version %s"
-msgstr ""
-
-#: includes/admin.php:415
-msgid "All sites"
-msgstr ""
-
-#. translators: %s: host name of the site
-#: includes/admin.php:418 includes/admin.php:429
-msgid "robots.txt for %s"
-msgstr ""
-
-#. translators: %s: new file name of the physical robots.txt
-#: includes/admin.php:461
-msgid "The physical robots.txt was renamed to %s."
-msgstr ""
-
-#: includes/admin.php:464
-msgid "Settings saved."
-msgstr ""
-
-#: includes/admin.php:465
-msgid "robots.txt saved."
-msgstr ""
-
-#: includes/admin.php:466
-msgid "File copied into the database. Delete the file to make the database content active."
-msgstr ""
-
-#: includes/admin.php:467
-msgid "The file could not be read."
-msgstr ""
-
-#: includes/admin.php:469
-msgid "Its content is now stored in the database."
-msgstr ""
-
-#: includes/admin.php:470
-msgid "The physical robots.txt could not be renamed. Rename or delete it via FTP or your hosting panel."
-msgstr ""
-
-#. translators: %s: URL of the robots.txt at the root of the host
-#: includes/admin.php:489
-msgid "The address of this site contains a path. Crawlers only request the robots.txt at the root of the host (%s), which WordPress cannot deliver here, so the plugin does nothing."
-msgstr ""
-
-#: includes/admin.php:515
-msgid "An SEO plugin is active. In \"Base\" mode, Yoast SEO removes the WordPress default rules and appends its own rules and sitemap, and All in One SEO rebuilds the robots.txt: comments and Sitemap lines are dropped. Use \"Exact\" mode if the content should be delivered as is."
-msgstr ""
-
-#. translators: %s: path of the physical robots.txt file
-#: includes/admin.php:536
-msgid "A physical robots.txt exists at %s. The web server delivers it directly, so WordPress and this plugin are never asked."
-msgstr ""
-
-#: includes/admin.php:540
-msgid "View it"
-msgstr ""
-
-#: includes/admin.php:546
-msgid "Rename it to use the robots.txt of this plugin. The renamed file stays in the web root and can be restored at any time."
-msgstr ""
-
-#: includes/admin.php:551
-msgid "Copy into the editor of the main site and rename"
-msgstr ""
-
-#: includes/admin.php:551
-msgid "Copy into the editor and rename"
-msgstr ""
-
-#: includes/admin.php:553
-msgid "Rename to _old-robots.txt"
-msgstr ""
-
-#: includes/admin.php:557
-msgid "WordPress cannot rename it on this server. Rename or delete it via FTP or your hosting panel."
-msgstr ""
-
-#: includes/admin.php:573
-msgid "Mode"
-msgstr ""
-
-#. translators: %s: name of the mode "Base"
-#: includes/admin.php:581
-msgid "%s – the content replaces the WordPress default. SEO plugins may add their rules and sitemap; duplicate Sitemap lines are removed."
-msgstr ""
-
-#: includes/admin.php:582
-msgctxt "robots.txt mode"
-msgid "Base"
-msgstr ""
-
-#. translators: %s: name of the mode "Exact"
-#: includes/admin.php:591
-msgid "%s – a custom robots.txt is delivered as is. SEO plugins (Yoast SEO, All in One SEO …) cannot change it. Sites without a custom robots.txt keep the one from WordPress and the SEO plugins."
-msgstr ""
-
-#: includes/admin.php:592
+#: includes/admin.php:199 includes/admin.php:885
 msgctxt "robots.txt mode"
 msgid "Exact"
 msgstr ""
 
-#: includes/admin.php:600
+#: includes/admin.php:199 includes/admin.php:875
+msgctxt "robots.txt mode"
+msgid "Base"
+msgstr ""
+
+#. translators: %d: HTTP status code
+#: includes/admin.php:223
+msgid "HTTP status %d"
+msgstr ""
+
+#: includes/admin.php:365
+msgid "Physical robots.txt in the web root is delivered"
+msgstr ""
+
+#: includes/admin.php:368
+msgid "Hidden from search engines"
+msgstr ""
+
+#: includes/admin.php:372
+msgid "Not checked yet"
+msgstr ""
+
+#. translators: %s: error message or HTTP status code
+#: includes/admin.php:375
+msgid "Not reachable (%s)"
+msgstr ""
+
+#: includes/admin.php:378
+msgid "All crawlers blocked"
+msgstr ""
+
+#. translators: %d: number of Sitemap lines
+#: includes/admin.php:383
+msgid "%d sitemap linked"
+msgid_plural "%d sitemaps linked"
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/admin.php:384
+msgid "No sitemap linked"
+msgstr ""
+
+#: includes/admin.php:387
+msgid "AI training blocked"
+msgstr ""
+
+#. translators: 1: number of blocked AI training crawlers, 2: number of known AI training crawlers
+#: includes/admin.php:390
+msgid "AI training partly blocked (%1$d of %2$d)"
+msgstr ""
+
+#: includes/admin.php:392
+msgid "AI training not blocked"
+msgstr ""
+
+#. translators: %s: time since the check, e.g. "2 hours"
+#: includes/admin.php:399
+msgid "Checked %s ago"
+msgstr ""
+
+#: includes/admin.php:401
+msgid "Check again"
+msgstr ""
+
+#: includes/admin.php:466
+msgid "Sorry, you are not allowed to manage the robots.txt."
+msgstr ""
+
+#: includes/admin.php:485
+msgid "Site not found."
+msgstr ""
+
+#. translators: %s: version number of the plugin
+#: includes/admin.php:690
+msgid "Version %s"
+msgstr ""
+
+#: includes/admin.php:712
+msgid "All sites"
+msgstr ""
+
+#. translators: %s: host name of the site
+#: includes/admin.php:714 includes/admin.php:723
+msgid "robots.txt for %s"
+msgstr ""
+
+#. translators: %s: new file name of the physical robots.txt
+#: includes/admin.php:755
+msgid "The physical robots.txt was renamed to %s."
+msgstr ""
+
+#: includes/admin.php:758
+msgid "Settings saved."
+msgstr ""
+
+#: includes/admin.php:759
+msgid "robots.txt saved."
+msgstr ""
+
+#: includes/admin.php:760
+msgid "File copied into the database. Delete the file to make the database content active."
+msgstr ""
+
+#: includes/admin.php:761
+msgid "The file could not be read."
+msgstr ""
+
+#: includes/admin.php:763
+msgid "Its content is now stored in the database."
+msgstr ""
+
+#: includes/admin.php:764
+msgid "The physical robots.txt could not be renamed. Rename or delete it via FTP or your hosting panel."
+msgstr ""
+
+#. translators: %s: URL of the robots.txt at the root of the host
+#: includes/admin.php:781
+msgid "The address of this site contains a path. Crawlers only request the robots.txt at the root of the host (%s), which WordPress cannot deliver here, so the plugin does nothing."
+msgstr ""
+
+#: includes/admin.php:807
+msgid "An SEO plugin is active on a site in \"Base\" mode. In \"Base\" mode, Yoast SEO removes the WordPress default rules and appends its own rules and sitemap, and All in One SEO rebuilds the robots.txt: comments and Sitemap lines are dropped. Use \"Exact\" mode if the content should be delivered as is."
+msgstr ""
+
+#. translators: %s: path of the physical robots.txt file
+#: includes/admin.php:828
+msgid "A physical robots.txt exists at %s. The web server delivers it directly, so WordPress and this plugin are never asked."
+msgstr ""
+
+#: includes/admin.php:832
+msgid "View it"
+msgstr ""
+
+#: includes/admin.php:838
+msgid "Rename it to use the robots.txt of this plugin. The renamed file stays in the web root and can be restored at any time."
+msgstr ""
+
+#: includes/admin.php:843
+msgid "Copy into the editor of the main site and rename"
+msgstr ""
+
+#: includes/admin.php:843
+msgid "Copy into the editor and rename"
+msgstr ""
+
+#: includes/admin.php:845
+msgid "Rename to _old-robots.txt"
+msgstr ""
+
+#: includes/admin.php:849
+msgid "WordPress cannot rename it on this server. Rename or delete it via FTP or your hosting panel."
+msgstr ""
+
+#: includes/admin.php:865
+msgid "Default mode"
+msgstr ""
+
+#: includes/admin.php:867
+msgid "Applies to all sites that do not choose their own mode in their editor."
+msgstr ""
+
+#: includes/admin.php:867
+msgid "Applies unless the editor chooses another mode."
+msgstr ""
+
+#. translators: %s: name of the mode "Base"
+#: includes/admin.php:874
+msgid "%s – the content replaces the WordPress default. SEO plugins may add their rules and sitemap; duplicate Sitemap lines are removed."
+msgstr ""
+
+#. translators: %s: name of the mode "Exact"
+#: includes/admin.php:884
+msgid "%s – a custom robots.txt is delivered as is. SEO plugins (Yoast SEO, All in One SEO …) cannot change it. Sites without a custom robots.txt keep the one from WordPress and the SEO plugins."
+msgstr ""
+
+#: includes/admin.php:893
 msgid "Search engine visibility"
 msgstr ""
 
-#: includes/admin.php:604
+#: includes/admin.php:897
 msgid "Ignore the custom robots.txt on sites set to \"Discourage search engines from indexing this site\" (WordPress delivers its default robots.txt)."
 msgstr ""
 
-#: includes/admin.php:610
+#: includes/admin.php:903
 msgid "Sites with a path"
 msgstr ""
 
-#: includes/admin.php:615
+#: includes/admin.php:908
 msgid "Add rules for sites whose address contains a path (example.com/blog/) to the robots.txt of their host, also in \"Exact\" mode: Disallow for sites hidden from search engines, Sitemap for public sites."
 msgstr ""
 
-#: includes/admin.php:617
+#: includes/admin.php:910
 msgid "The Disallow lines are added as a group for all crawlers. Crawlers that have a group of their own in the robots.txt do not read it."
 msgstr ""
 
-#: includes/admin.php:622
+#: includes/admin.php:915
+msgid "Keep status for"
+msgstr ""
+
+#: includes/admin.php:918
+msgid "hours"
+msgstr ""
+
+#: includes/admin.php:919
+msgid "The status of a robots.txt (blocked crawlers, sitemaps, AI training) is checked again when the overview is opened after this time. It can be checked at any time with \"Check again\"."
+msgstr ""
+
+#: includes/admin.php:923
 msgid "Save settings"
 msgstr ""
 
-#: includes/admin.php:645
+#: includes/admin.php:946
 msgid "This site is hidden from search engines, so the custom robots.txt is ignored and WordPress delivers its default robots.txt."
 msgstr ""
 
-#: includes/admin.php:652
+#: includes/admin.php:953
 msgid "In \"Base\" mode, Yoast SEO removes the lines \"User-agent: *\", \"Disallow: /wp-admin/\" and \"Allow: /wp-admin/admin-ajax.php\" when they appear in this order. Put the Allow line first (crawlers do not care about the order) or use \"Exact\" mode."
 msgstr ""
 
 #. translators: %s: file path
-#: includes/admin.php:659
+#: includes/admin.php:960
 msgid "This site is overridden by the file %s. The file is delivered; the database content below is only used once the file is removed."
 msgstr ""
 
-#: includes/admin.php:666
+#: includes/admin.php:967
 msgid "File content (read-only)"
 msgstr ""
 
-#: includes/admin.php:672
+#: includes/admin.php:973
 msgid "Copy file into database"
 msgstr ""
 
-#: includes/admin.php:678
+#: includes/admin.php:979
 msgid "Database content"
 msgstr ""
 
-#: includes/admin.php:684
+#: includes/admin.php:985
 msgid "Replace the current content with the example rules?"
 msgstr ""
 
-#: includes/admin.php:684
+#: includes/admin.php:985
 msgid "Insert example rules"
 msgstr ""
 
-#: includes/admin.php:685
+#: includes/admin.php:986
 msgid "Add: block AI training, allow AI search"
 msgstr ""
 
-#: includes/admin.php:687
+#: includes/admin.php:988
 msgid "The buttons only change the field; nothing is saved until you click \"Save robots.txt\". Leave empty to keep the robots.txt generated by WordPress and SEO plugins."
 msgstr ""
 
-#: includes/admin.php:688
+#: includes/admin.php:990 includes/admin.php:1097
+msgid "Mode"
+msgstr ""
+
+#. translators: %s: name of the default mode
+#: includes/admin.php:995
+msgid "Default (%s)"
+msgstr ""
+
+#. translators: %s: name of the mode "Base"
+#: includes/admin.php:997
+msgid "%s – SEO plugins may add to the content"
+msgstr ""
+
+#. translators: %s: name of the mode "Exact"
+#: includes/admin.php:999
+msgid "%s – the content is delivered as is"
+msgstr ""
+
+#: includes/admin.php:1006
 msgid "Save robots.txt"
 msgstr ""
 
-#: includes/admin.php:710
+#: includes/admin.php:1028
 msgid "Live robots.txt"
 msgstr ""
 
 #. translators: %s: error message or HTTP status code
-#: includes/admin.php:716
+#: includes/admin.php:1034
 msgid "The live robots.txt could not be loaded (%s). The server may block requests to itself."
 msgstr ""
 
-#: includes/admin.php:726
+#: includes/admin.php:1044
 msgid "Open live robots.txt"
 msgstr ""
 
+#: includes/admin.php:1045 includes/admin.php:1101
+msgid "Status"
+msgstr ""
+
 #. translators: %s: URL of the robots.txt at the root of the host
-#: includes/admin.php:742
+#: includes/admin.php:1062
 msgid "The address of this site contains a path. Crawlers only request the robots.txt at the root of the host, so the rules for this site belong in %s."
 msgstr ""
 
-#: includes/admin.php:762
+#: includes/admin.php:1082
 msgid "Sites"
 msgstr ""
 
 #. translators: %s: directory path
-#: includes/admin.php:767
+#: includes/admin.php:1087
 msgid "Edit the robots.txt of a site here. Optionally, a file in %s overrides the database content, e.g. for deployments. The hyphenated file name takes precedence; the name with dots is an unambiguous alternative."
 msgstr ""
 
-#: includes/admin.php:775
+#: includes/admin.php:1092
+msgid "Check all sites again"
+msgstr ""
+
+#: includes/admin.php:1096
 msgid "Site"
 msgstr ""
 
-#: includes/admin.php:776
+#: includes/admin.php:1098
 msgctxt "where the robots.txt comes from"
 msgid "Source"
 msgstr ""
 
-#: includes/admin.php:777
+#: includes/admin.php:1099
 msgid "Override file name"
 msgstr ""
 
-#: includes/admin.php:778
+#: includes/admin.php:1100
 msgid "SEO plugins"
 msgstr ""
 
-#: includes/admin.php:796
+#: includes/admin.php:1119
 msgctxt "edit the robots.txt of a site"
 msgid "Edit"
 msgstr ""
 
+#: includes/admin.php:1120
+msgid "Open robots.txt"
+msgstr ""
+
+#. translators: %s: name of the default mode
+#: includes/admin.php:1132
+msgid "%s (default)"
+msgstr ""
+
 #. translators: %s: host name
-#: includes/admin.php:805
+#: includes/admin.php:1142
 msgid "Served by the robots.txt of %s"
 msgstr ""
 
-#: includes/admin.php:807
+#: includes/admin.php:1144
 msgid "Sitemap line added"
 msgstr ""
 
-#: includes/admin.php:807
+#: includes/admin.php:1144
 msgid "Disallow line added"
 msgstr ""
 
 #. translators: %s: names of the active SEO plugins
-#: includes/admin.php:813
+#: includes/admin.php:1150
 msgid "Not set – generated by WordPress and %s"
 msgstr ""
 
-#: includes/admin.php:815
+#: includes/admin.php:1152
 msgid "Not set – generated by WordPress"
 msgstr ""
 
-#: includes/admin.php:817
+#: includes/admin.php:1154
 msgid "Ignored – site hidden from search engines"
 msgstr ""
 
 #. translators: %s: file name
-#: includes/admin.php:820
+#: includes/admin.php:1157
 msgid "File: %s"
 msgstr ""
 
-#: includes/admin.php:822
+#: includes/admin.php:1159
 msgctxt "where the robots.txt comes from"
 msgid "Database"
 msgstr ""
 
-#: includes/admin.php:837
-msgctxt "open the live robots.txt"
-msgid "Open"
+#: includes/admin.php:1194
+msgid "My robots.txt is not delivered."
+msgstr ""
+
+#: includes/admin.php:1195
+msgid "Check that there is no physical robots.txt in the web root and that the site is not set to \"Discourage search engines\". In a network, the overview shows the source and the status of every site. Override files must be readable by the web server."
+msgstr ""
+
+#: includes/admin.php:1196
+msgid "I changed the content in the editor, but the old one is still delivered."
+msgstr ""
+
+#: includes/admin.php:1197
+msgid "A file in the override directory takes precedence over the database content. Delete the file – or copy it into the database first with the button in the editor. A page cache or CDN may also deliver an old copy."
+msgstr ""
+
+#: includes/admin.php:1198
+msgid "What is the difference between \"Base\" and \"Exact\"?"
+msgstr ""
+
+#: includes/admin.php:1199
+msgid "In \"Base\" mode, the content replaces the WordPress default and SEO plugins may still change it: Yoast SEO removes the WordPress default rules and appends its own rules and sitemap, All in One SEO rebuilds the robots.txt. In \"Exact\" mode, a custom robots.txt is delivered as is. The default mode is set in the settings; each site can choose its own in its editor."
+msgstr ""
+
+#: includes/admin.php:1200
+msgid "What does the status check?"
+msgstr ""
+
+#: includes/admin.php:1201
+msgid "It requests the robots.txt of the site as crawlers get it and shows whether all crawlers are blocked, how many sitemaps are linked and whether crawlers that collect content for AI training are blocked. The result is kept for the time set in the settings and can be checked again at any time."
+msgstr ""
+
+#: includes/admin.php:1202
+msgid "Does it work if WordPress is installed in a subdirectory?"
+msgstr ""
+
+#: includes/admin.php:1203
+msgid "If the address of the site contains a path (example.com/blog/), crawlers request the robots.txt from example.com/robots.txt, which WordPress does not deliver. The plugin then does nothing and says so. If only the WordPress files are in a subdirectory and the address is the root of the domain, it works."
+msgstr ""
+
+#: includes/admin.php:1204
+msgid "What happens on uninstall?"
+msgstr ""
+
+#: includes/admin.php:1205
+msgid "The settings and everything stored in the database are deleted. Files in the override directory and a renamed _old-robots.txt are kept."
 msgstr ""
