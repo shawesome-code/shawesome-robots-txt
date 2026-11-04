@@ -543,7 +543,7 @@ function shawesome_robots_txt_render_settings() {
 							<?php
 							printf(
 								/* translators: %s: name of the mode "Exact" */
-								esc_html__( '%s – the content is delivered as is. SEO plugins (Yoast SEO, All in One SEO …) cannot change it. Only applies if the site has content: without it, WordPress and SEO plugins deliver their robots.txt.', 'shawesome-robots-txt' ),
+								esc_html__( '%s – a custom robots.txt is delivered as is. SEO plugins (Yoast SEO, All in One SEO …) cannot change it. Sites without a custom robots.txt keep the one from WordPress and the SEO plugins.', 'shawesome-robots-txt' ),
 								'<strong>' . esc_html_x( 'Exact', 'robots.txt mode', 'shawesome-robots-txt' ) . '</strong>'
 							);
 							?>

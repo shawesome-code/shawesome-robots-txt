@@ -43,7 +43,7 @@ Sites with a path (`example.com/blog/`) are served by the robots.txt of their ho
 Yoast SEO and All in One SEO change the robots.txt output. In the settings you choose how your content is combined with them:
 
 * **Base** (default) – the content replaces the WordPress default; Yoast SEO appends its sitemap, All in One SEO rebuilds the rules (comments and Sitemap lines are dropped). Duplicate Sitemap lines are removed.
-* **Exact** – the content is delivered as is, after all SEO plugins have run. Sites without content keep the robots.txt of WordPress and the SEO plugins.
+* **Exact** – the content is delivered as is, after all SEO plugins have run. Sites without a custom robots.txt (no content in the editor and no file) keep the one from WordPress and the SEO plugins.
 
 **Physical robots.txt**
 
