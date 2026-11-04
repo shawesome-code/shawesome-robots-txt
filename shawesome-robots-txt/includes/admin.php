@@ -70,26 +70,73 @@ function shawesome_robots_txt_active_seo_plugins( $site_id ) {
  */
 function shawesome_robots_txt_page_url( $args = array() ) {
 	$url = is_multisite()
-		? network_admin_url( 'settings.php?page=shawesome-robots-txt' )
-		: admin_url( 'options-general.php?page=shawesome-robots-txt' );
+		? network_admin_url( 'admin.php?page=shawesome-robots-txt' )
+		: admin_url( 'admin.php?page=shawesome-robots-txt' );
 
 	return add_query_arg( $args, $url );
 }
 
 /**
- * Add the settings page under Settings or Network Admin → Settings.
+ * The shawesome mark as a data URI for the menu. WordPress repaints it to
+ * match the admin color scheme.
+ *
+ * @return string
+ */
+function shawesome_robots_txt_menu_icon() {
+	$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><g fill="#a7aaad"><rect x="5" y="5" width="17" height="17" rx="4.5"/><rect x="26" y="5" width="17" height="17" rx="4.5"/><rect x="5" y="26" width="17" height="17" rx="4.5"/><rect x="28.5" y="28.5" width="17" height="17" rx="4.5"/></g></svg>';
+
+	return 'data:image/svg+xml;base64,' . base64_encode( $svg ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+}
+
+/**
+ * Add the page to the "shawesome" menu: in the network admin in a network,
+ * in the admin otherwise. The menu is created here unless another shawesome
+ * plugin already added it (same slug, so all shawesome plugins share it).
  */
 function shawesome_robots_txt_admin_menu() {
-	add_submenu_page(
-		is_multisite() ? 'settings.php' : 'options-general.php',
+	global $admin_page_hooks;
+
+	$own_menu = empty( $admin_page_hooks['shawesome'] );
+	if ( $own_menu ) {
+		add_menu_page( 'shawesome', 'shawesome', shawesome_robots_txt_capability(), 'shawesome', '__return_null', shawesome_robots_txt_menu_icon(), is_multisite() ? 30 : 81 );
+	}
+
+	$hook = add_submenu_page(
+		'shawesome',
 		__( 'robots.txt', 'shawesome-robots-txt' ),
 		__( 'robots.txt', 'shawesome-robots-txt' ),
 		shawesome_robots_txt_capability(),
 		'shawesome-robots-txt',
 		'shawesome_robots_txt_render_page'
 	);
+
+	// WordPress repeats a new menu as its first entry; the menu has no page of its own.
+	if ( $own_menu ) {
+		remove_submenu_page( 'shawesome', 'shawesome' );
+	}
+
+	add_action( 'load-' . $hook, 'shawesome_robots_txt_load_page' );
 }
 add_action( is_multisite() ? 'network_admin_menu' : 'admin_menu', 'shawesome_robots_txt_admin_menu' );
+
+/**
+ * Add the styles of the settings page.
+ */
+function shawesome_robots_txt_load_page() {
+	add_action(
+		'admin_enqueue_scripts',
+		function () {
+			wp_register_style( 'shawesome-robots-txt', false, array(), SHAWESOME_ROBOTS_TXT_VERSION );
+			wp_enqueue_style( 'shawesome-robots-txt' );
+			wp_add_inline_style(
+				'shawesome-robots-txt',
+				'.shawesome-robots-txt-version{margin-left:8px;font-size:13px;font-weight:400;color:#646970}'
+				. '.shawesome-robots-txt-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}'
+				. '@media (max-width:960px){.shawesome-robots-txt-columns{grid-template-columns:minmax(0,1fr)}}'
+			);
+		}
+	);
+}
 
 /**
  * Add a "Settings" link to the plugin row.
@@ -313,16 +360,19 @@ function shawesome_robots_txt_render_page() {
 	// phpcs:enable
 
 	echo '<div class="wrap">';
+	echo '<h1>shawesome robots.txt <span class="shawesome-robots-txt-version">';
+	/* translators: %s: version number of the plugin */
+	echo esc_html( sprintf( __( 'Version %s', 'shawesome-robots-txt' ), SHAWESOME_ROBOTS_TXT_VERSION ) );
+	echo '</span></h1>';
 
 	if ( $site ) {
 		$site_id = (int) $site->blog_id;
-		/* translators: %s: host name of the site */
-		echo '<h1>' . esc_html( sprintf( __( 'robots.txt for %s', 'shawesome-robots-txt' ), shawesome_robots_txt_host( $site_id ) ) ) . '</h1>';
 		echo '<p><a href="' . esc_url( shawesome_robots_txt_page_url() ) . '">&larr; ' . esc_html__( 'All sites', 'shawesome-robots-txt' ) . '</a></p>';
 		shawesome_robots_txt_render_result( $updated, $renamed );
+		/* translators: %s: host name of the site */
+		echo '<h2>' . esc_html( sprintf( __( 'robots.txt for %s', 'shawesome-robots-txt' ), shawesome_robots_txt_host( $site_id ) ) ) . '</h2>';
 		shawesome_robots_txt_render_editor( $site_id );
 	} else {
-		echo '<h1>' . esc_html__( 'robots.txt', 'shawesome-robots-txt' ) . '</h1>';
 		shawesome_robots_txt_render_result( $updated, $renamed );
 		shawesome_robots_txt_render_warnings();
 		shawesome_robots_txt_render_settings();
@@ -548,7 +598,7 @@ function shawesome_robots_txt_render_editor( $site_id ) {
 			true
 		);
 		?>
-		<h2><?php esc_html_e( 'File content (read-only)', 'shawesome-robots-txt' ); ?></h2>
+		<h3><?php esc_html_e( 'File content (read-only)', 'shawesome-robots-txt' ); ?></h3>
 		<textarea class="large-text code" rows="12" readonly><?php echo esc_textarea( $resolved['content'] ); ?></textarea>
 
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
@@ -558,16 +608,53 @@ function shawesome_robots_txt_render_editor( $site_id ) {
 		</form>
 	<?php endif; ?>
 
-	<h2><?php esc_html_e( 'Database content', 'shawesome-robots-txt' ); ?></h2>
-	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-		<?php shawesome_robots_txt_form_fields( 'save_site', 'shawesome_robots_txt_save_site_' . $site_id ); ?>
-		<input type="hidden" name="site_id" value="<?php echo esc_attr( $site_id ); ?>">
-		<textarea name="content" class="large-text code" rows="16" placeholder="User-agent: *&#10;Disallow: /wp-admin/&#10;Allow: /wp-admin/admin-ajax.php&#10;&#10;Sitemap: <?php echo esc_attr( get_home_url( $site_id, 'wp-sitemap.xml' ) ); ?>"><?php echo esc_textarea( $db_content ); ?></textarea>
-		<p class="description"><?php esc_html_e( 'Leave empty to use the WordPress default (including output from SEO plugins).', 'shawesome-robots-txt' ); ?></p>
-		<?php submit_button( __( 'Save robots.txt', 'shawesome-robots-txt' ) ); ?>
-	</form>
+	<div class="shawesome-robots-txt-columns">
+		<div>
+			<h3><?php esc_html_e( 'Database content', 'shawesome-robots-txt' ); ?></h3>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<?php shawesome_robots_txt_form_fields( 'save_site', 'shawesome_robots_txt_save_site_' . $site_id ); ?>
+				<input type="hidden" name="site_id" value="<?php echo esc_attr( $site_id ); ?>">
+				<textarea name="content" class="large-text code" rows="16" placeholder="User-agent: *&#10;Disallow: /wp-admin/&#10;Allow: /wp-admin/admin-ajax.php&#10;&#10;Sitemap: <?php echo esc_attr( get_home_url( $site_id, 'wp-sitemap.xml' ) ); ?>"><?php echo esc_textarea( $db_content ); ?></textarea>
+				<p class="description"><?php esc_html_e( 'Leave empty to use the WordPress default (including output from SEO plugins).', 'shawesome-robots-txt' ); ?></p>
+				<?php submit_button( __( 'Save robots.txt', 'shawesome-robots-txt' ) ); ?>
+			</form>
+		</div>
+		<div>
+			<?php shawesome_robots_txt_render_live( $site_id ); ?>
+		</div>
+	</div>
+	<?php
+}
 
-	<p><a href="<?php echo esc_url( get_home_url( $site_id, 'robots.txt' ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Open live robots.txt', 'shawesome-robots-txt' ); ?></a></p>
+/**
+ * Render the robots.txt as currently delivered to crawlers. It is requested
+ * from the site itself, so it includes a physical file and the output of SEO
+ * plugins.
+ *
+ * @param int $site_id Site ID.
+ */
+function shawesome_robots_txt_render_live( $site_id ) {
+	$url      = get_home_url( $site_id, 'robots.txt' );
+	$response = wp_remote_get( $url, array( 'timeout' => 5 ) );
+	$code     = wp_remote_retrieve_response_code( $response );
+	?>
+	<h3><?php esc_html_e( 'Live robots.txt', 'shawesome-robots-txt' ); ?></h3>
+	<?php if ( is_wp_error( $response ) || 200 !== $code ) : ?>
+		<?php
+		shawesome_robots_txt_notice(
+			sprintf(
+				/* translators: %s: error message or HTTP status code */
+				esc_html__( 'The live robots.txt could not be loaded (%s). The server may block requests to itself.', 'shawesome-robots-txt' ),
+				esc_html( is_wp_error( $response ) ? $response->get_error_message() : (string) $code )
+			),
+			'warning',
+			true
+		);
+		?>
+	<?php else : ?>
+		<textarea class="large-text code" rows="16" readonly><?php echo esc_textarea( wp_remote_retrieve_body( $response ) ); ?></textarea>
+	<?php endif; ?>
+	<p class="description"><a href="<?php echo esc_url( $url ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Open live robots.txt', 'shawesome-robots-txt' ); ?></a></p>
 	<?php
 }
 

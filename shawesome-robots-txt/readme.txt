@@ -17,7 +17,7 @@ WordPress generates a virtual robots.txt with the same rules for every site. sha
 
 **Edit in the admin**
 
-On a single site, the editor is under *Settings → robots.txt*. In a network, *Network Admin → Settings → robots.txt* lists all sites, and every site has its own editor. The content is stored in the site's database options – it survives domain changes and is removed together with the site. Leave it empty to keep WordPress' default robots.txt.
+On a single site, the editor is under *shawesome → robots.txt*. In a network, *Network Admin → shawesome → robots.txt* lists all sites, and every site has its own editor. Next to the editor, the live robots.txt shows what crawlers currently get. The content is stored in the site's database options – it survives domain changes and is removed together with the site. Leave it empty to keep WordPress' default robots.txt.
 
 **Or deploy a file**
 
@@ -70,7 +70,7 @@ Sites set to "Discourage search engines from indexing this site" keep the WordPr
 
 1. Upload the folder `shawesome-robots-txt` to `/wp-content/plugins/` or install the plugin via *Plugins → Add New*.
 2. Activate the plugin – in a network, network-activate it.
-3. Edit the robots.txt under *Settings → robots.txt* (single site) or *Network Admin → Settings → robots.txt* (network) – or place a text file per domain in `/wp-content/shawesome-robots-txt/`, e.g. `www-example-com.txt`.
+3. Edit the robots.txt under *shawesome → robots.txt* (single site) or *Network Admin → shawesome → robots.txt* (network) – or place a text file per domain in `/wp-content/shawesome-robots-txt/`, e.g. `www-example-com.txt`.
 4. Check the result with the "Open live robots.txt" link or at `https://www.example.com/robots.txt`.
 
 == Frequently Asked Questions ==

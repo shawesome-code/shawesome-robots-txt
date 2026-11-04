@@ -11,7 +11,7 @@ By [shawesome](https://shawesome.de/) · Open source under the [GNU General Publ
 Each site gets its own robots.txt, resolved in this order:
 
 1. **File** – a plain text file in `wp-content/shawesome-robots-txt/`, named after the domain (dots become hyphens). Useful for Git-based deployments.
-2. **Database** – content edited under *Settings → robots.txt* (single site) or *Network Admin → Settings → robots.txt* (network), stored per site (survives domain changes, removed with the site).
+2. **Database** – content edited under *shawesome → robots.txt* (single site) or *Network Admin → shawesome → robots.txt* (network), stored per site (survives domain changes, removed with the site).
 3. **WordPress default** – if neither exists.
 
 | Domain             | Override file           |
