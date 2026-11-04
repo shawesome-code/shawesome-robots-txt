@@ -131,7 +131,7 @@ msgstr ""
 
 #. translators: %s: name of the mode "Exact"
 #: includes/admin.php:546
-msgid "%s – the content is delivered as is. SEO plugins (Yoast SEO, All in One SEO …) cannot change it."
+msgid "%s – the content is delivered as is. SEO plugins (Yoast SEO, All in One SEO …) cannot change it. Only applies if the site has content: without it, WordPress and SEO plugins deliver their robots.txt."
 msgstr ""
 
 #: includes/admin.php:547
