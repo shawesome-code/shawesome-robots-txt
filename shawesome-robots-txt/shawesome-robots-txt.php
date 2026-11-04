@@ -29,6 +29,7 @@ define( 'SHAWESOME_ROBOTS_TXT_OPTION', 'shawesome_robots_txt_settings' );
 define( 'SHAWESOME_ROBOTS_TXT_CONTENT_OPTION', 'shawesome_robots_txt_content' );
 define( 'SHAWESOME_ROBOTS_TXT_MODE_OPTION', 'shawesome_robots_txt_mode' );
 define( 'SHAWESOME_ROBOTS_TXT_STATUS_OPTION', 'shawesome_robots_txt_status' );
+define( 'SHAWESOME_ROBOTS_TXT_RULES_OPTION', 'shawesome_robots_txt_rules' );
 
 /**
  * Option of a site (the current site on a single site).
@@ -90,6 +91,67 @@ function shawesome_robots_txt_mode( $site_id ) {
 	}
 
 	return $mode;
+}
+
+/**
+ * Options of a site for added rules, merged with the defaults.
+ *
+ * - crawl_delay: seconds, 0 = no Crawl-delay line.
+ * - css_js, images, pdfs: allowed (default) or blocked with Disallow lines.
+ *
+ * @param int $site_id Site ID (ignored on a single site).
+ * @return array{crawl_delay: int, css_js: bool, images: bool, pdfs: bool}
+ */
+function shawesome_robots_txt_site_rules( $site_id ) {
+	$rules = wp_parse_args(
+		(array) shawesome_robots_txt_get_site_option( $site_id, SHAWESOME_ROBOTS_TXT_RULES_OPTION, array() ),
+		array(
+			'crawl_delay' => 0,
+			'css_js'      => true,
+			'images'      => true,
+			'pdfs'        => true,
+		)
+	);
+
+	return array(
+		'crawl_delay' => min( 60, max( 0, (int) $rules['crawl_delay'] ) ),
+		'css_js'      => (bool) $rules['css_js'],
+		'images'      => (bool) $rules['images'],
+		'pdfs'        => (bool) $rules['pdfs'],
+	);
+}
+
+/**
+ * Lines for the added rules of a site: Crawl-delay and Disallow lines for
+ * blocked resources. Patterns use "*" and "$" as defined in RFC 9309; "?"
+ * matches the query string of versioned CSS and JavaScript files.
+ *
+ * @param int $site_id Site ID (ignored on a single site).
+ * @return string[]
+ */
+function shawesome_robots_txt_site_rule_lines( $site_id ) {
+	$rules = shawesome_robots_txt_site_rules( $site_id );
+	$lines = array();
+
+	if ( $rules['crawl_delay'] ) {
+		$lines[] = 'Crawl-delay: ' . $rules['crawl_delay'];
+	}
+	if ( ! $rules['css_js'] ) {
+		foreach ( array( 'css', 'js' ) as $ext ) {
+			$lines[] = 'Disallow: /*.' . $ext . '$';
+			$lines[] = 'Disallow: /*.' . $ext . '?';
+		}
+	}
+	if ( ! $rules['images'] ) {
+		foreach ( array( 'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'svg' ) as $ext ) {
+			$lines[] = 'Disallow: /*.' . $ext . '$';
+		}
+	}
+	if ( ! $rules['pdfs'] ) {
+		$lines[] = 'Disallow: /*.pdf$';
+	}
+
+	return $lines;
 }
 
 /**
@@ -454,21 +516,36 @@ function shawesome_robots_txt_filter_dedupe( $output ) {
 
 /**
  * Filter callback for 'robots_txt' after all SEO plugins, in both modes: add
- * the rules for the sites with a path on this host.
+ * the rules of the site (Crawl-delay, blocked resources) as a group for all
+ * crawlers, and in a network the rules for the sites with a path on this host.
  *
  * @param string $output robots.txt output.
+ * @param bool   $public Whether the site is public (false = discourage search engines).
  * @return string
  */
-function shawesome_robots_txt_filter_path_rules( $output ) {
-	$site_id = get_current_blog_id();
+function shawesome_robots_txt_filter_added_rules( $output, $public ) {
+	$site_id  = get_current_blog_id();
+	$settings = shawesome_robots_txt_get_settings();
 
 	if ( ! shawesome_robots_txt_serves_own( $site_id ) ) {
 		return $output;
 	}
 
-	$rules = shawesome_robots_txt_path_rules( shawesome_robots_txt_host( $site_id ) );
+	$blocks = array();
 
-	return '' === $rules ? $output : rtrim( $output ) . "\n\n" . $rules . "\n";
+	// Like the custom robots.txt, the site rules are left out on hidden sites.
+	$lines = shawesome_robots_txt_site_rule_lines( $site_id );
+	if ( $lines && ! ( $settings['respect_public'] && ! $public ) ) {
+		$blocks[] = "# Added by shawesome robots.txt\nUser-agent: *\n" . implode( "\n", $lines );
+	}
+
+	if ( $settings['path_sites'] ) {
+		$blocks[] = shawesome_robots_txt_path_rules( shawesome_robots_txt_host( $site_id ) );
+	}
+
+	$blocks = array_filter( $blocks );
+
+	return $blocks ? rtrim( $output ) . "\n\n" . implode( "\n\n", $blocks ) . "\n" : $output;
 }
 
 /**
@@ -489,9 +566,7 @@ function shawesome_robots_txt_register_filters() {
 	add_filter( 'robots_txt', 'shawesome_robots_txt_filter_robots_txt', $priority, 2 );
 
 	// Added first, so that duplicate Sitemap lines are removed afterwards.
-	if ( $settings['path_sites'] && is_multisite() ) {
-		add_filter( 'robots_txt', 'shawesome_robots_txt_filter_path_rules', PHP_INT_MAX );
-	}
+	add_filter( 'robots_txt', 'shawesome_robots_txt_filter_added_rules', PHP_INT_MAX, 2 );
 
 	if ( 'base' === $mode ) {
 		add_filter( 'robots_txt', 'shawesome_robots_txt_filter_dedupe', PHP_INT_MAX );

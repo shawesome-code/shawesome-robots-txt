@@ -21,6 +21,16 @@ The plugin page is under *shawesome → robots.txt* (in a network in the network
 
 Two buttons help with the content: one inserts example rules (the WordPress default plus the sitemap of the site), the other adds a block that stops crawlers collecting content for AI training (GPTBot, ClaudeBot, Google-Extended, Applebot-Extended, CCBot). AI search crawlers such as OAI-SearchBot, Claude-SearchBot and PerplexityBot are not blocked. Like all of robots.txt, this only works with crawlers that follow it.
 
+**Options per site**
+
+The editor of each site also sets:
+
+* the mode (see below)
+* a Crawl-delay (off by default, 10 seconds when switched on; Google ignores it, Bing and Yandex for example follow it)
+* resources and assets: CSS and JavaScript files, images and PDF files are allowed by default; when switched off, Disallow lines block them
+
+Crawl-delay and blocked resources are added at the end of the robots.txt as a group for all crawlers (`User-agent: *`), in both modes. Crawlers that have a group of their own in the robots.txt do not read it.
+
 **Or deploy a file**
 
 A plain text file in `/wp-content/shawesome-robots-txt/` overrides the database content, e.g. for Git-based deployments. The file name is derived from the site's domain, with dots replaced by hyphens:
@@ -75,7 +85,7 @@ Sites set to "Discourage search engines from indexing this site" keep the WordPr
 * Constant `SHAWESOME_ROBOTS_TXT_DIR` or filter `shawesome_robots_txt_dir` – change the directory for override files.
 * Filter `shawesome_robots_txt_candidate_files` – change the candidate file paths for a domain.
 * Filter `shawesome_robots_txt_priority` – change the priority of the `robots_txt` filter.
-* Content, mode and status are stored in the site options `shawesome_robots_txt_content`, `shawesome_robots_txt_mode` and `shawesome_robots_txt_status` (not autoloaded).
+* Content, mode, status and the options per site are stored in the site options `shawesome_robots_txt_content`, `shawesome_robots_txt_mode`, `shawesome_robots_txt_status` and `shawesome_robots_txt_rules` (not autoloaded).
 * All callbacks are named functions and can be removed with `remove_filter()`.
 
 == Installation ==

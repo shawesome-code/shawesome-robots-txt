@@ -1,7 +1,7 @@
 <?php
 /**
  * Remove the plugin settings and everything stored per site (content, mode,
- * status) on uninstall. Files in /wp-content/shawesome-robots-txt/ are kept
+ * status, rules) on uninstall. Files in /wp-content/shawesome-robots-txt/ are kept
  * on purpose, as they are usually managed by deployments.
  *
  * @package Shawesome_Robots_Txt
@@ -11,7 +11,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	exit;
 }
 
-$shawesome_robots_txt_options = array( 'shawesome_robots_txt_content', 'shawesome_robots_txt_mode', 'shawesome_robots_txt_status' );
+$shawesome_robots_txt_options = array( 'shawesome_robots_txt_content', 'shawesome_robots_txt_mode', 'shawesome_robots_txt_status', 'shawesome_robots_txt_rules' );
 
 delete_site_option( 'shawesome_robots_txt_settings' );
 

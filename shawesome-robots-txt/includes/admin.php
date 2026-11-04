@@ -132,6 +132,10 @@ function shawesome_robots_txt_load_page() {
 				'shawesome-robots-txt',
 				'.shawesome-robots-txt-version{margin-top:0;color:#646970}'
 				. '.shawesome-robots-txt-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}'
+				. '.shawesome-robots-txt-toolbar{text-align:right}'
+				. '.shawesome-robots-txt-faq{max-width:960px;border-bottom:1px solid #dcdcde}'
+				. '.shawesome-robots-txt-faq summary{padding:12px 0;font-size:14px;font-weight:600;cursor:pointer}'
+				. '.shawesome-robots-txt-faq p{margin:0 0 12px}'
 				. '@media (max-width:960px){.shawesome-robots-txt-columns{grid-template-columns:minmax(0,1fr)}}'
 			);
 
@@ -567,6 +571,21 @@ function shawesome_robots_txt_save_site() {
 	$mode = isset( $_POST['site_mode'] ) ? sanitize_key( wp_unslash( $_POST['site_mode'] ) ) : '';
 	shawesome_robots_txt_set_site_option( $site_id, SHAWESOME_ROBOTS_TXT_MODE_OPTION, in_array( $mode, array( 'base', 'exact' ), true ) ? $mode : '' );
 
+	// Only values that differ from the defaults are stored.
+	$rules = array_filter(
+		array(
+			'crawl_delay' => empty( $_POST['crawl_delay_on'] ) ? 0 : min( 60, max( 1, absint( $_POST['crawl_delay'] ?? 10 ) ) ),
+			'css_js'      => empty( $_POST['css_js'] ) ? 0 : null,
+			'images'      => empty( $_POST['images'] ) ? 0 : null,
+			'pdfs'        => empty( $_POST['pdfs'] ) ? 0 : null,
+		),
+		function ( $value, $key ) {
+			return 'crawl_delay' === $key ? $value > 0 : null !== $value;
+		},
+		ARRAY_FILTER_USE_BOTH
+	);
+	shawesome_robots_txt_set_site_option( $site_id, SHAWESOME_ROBOTS_TXT_RULES_OPTION, $rules );
+
 	shawesome_robots_txt_redirect_to_site( $site_id, 'site' );
 }
 add_action( 'admin_post_shawesome_robots_txt_save_site', 'shawesome_robots_txt_save_site' );
@@ -711,7 +730,7 @@ function shawesome_robots_txt_render_page() {
 		$site_id = (int) $site->blog_id;
 		echo '<p><a href="' . esc_url( shawesome_robots_txt_page_url() ) . '">&larr; ' . esc_html__( 'All sites', 'shawesome-robots-txt' ) . '</a></p>';
 		/* translators: %s: host name of the site */
-		echo '<h2>' . esc_html( sprintf( __( 'robots.txt for %s', 'shawesome-robots-txt' ), shawesome_robots_txt_host( $site_id ) ) ) . '</h2>';
+		echo '<h2>' . esc_html( sprintf( __( '%s robots.txt', 'shawesome-robots-txt' ), shawesome_robots_txt_host( $site_id ) ) ) . '</h2>';
 		shawesome_robots_txt_render_editor( $site_id );
 	} else {
 		shawesome_robots_txt_render_warnings();
@@ -720,7 +739,7 @@ function shawesome_robots_txt_render_page() {
 			shawesome_robots_txt_render_sites();
 		} else {
 			/* translators: %s: host name of the site */
-			echo '<h2>' . esc_html( sprintf( __( 'robots.txt for %s', 'shawesome-robots-txt' ), shawesome_robots_txt_host( get_current_blog_id() ) ) ) . '</h2>';
+			echo '<h2>' . esc_html( sprintf( __( '%s robots.txt', 'shawesome-robots-txt' ), shawesome_robots_txt_host( get_current_blog_id() ) ) ) . '</h2>';
 			shawesome_robots_txt_render_editor( get_current_blog_id() );
 		}
 	}
@@ -974,42 +993,79 @@ function shawesome_robots_txt_render_editor( $site_id ) {
 		</form>
 	<?php endif; ?>
 
-	<div class="shawesome-robots-txt-columns">
-		<div>
-			<h3><?php esc_html_e( 'Database content', 'shawesome-robots-txt' ); ?></h3>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-				<?php shawesome_robots_txt_form_fields( 'save_site', 'shawesome_robots_txt_save_site_' . $site_id ); ?>
-				<input type="hidden" name="site_id" value="<?php echo esc_attr( $site_id ); ?>">
+	<?php
+	$site_mode = shawesome_robots_txt_site_mode( $site_id );
+	$rules     = shawesome_robots_txt_site_rules( $site_id );
+	$choices   = array(
+		/* translators: %s: name of the default mode */
+		''      => sprintf( __( 'Default (%s)', 'shawesome-robots-txt' ), shawesome_robots_txt_mode_label( $settings['mode'] ) ),
+		/* translators: %s: name of the mode "Base" */
+		'base'  => sprintf( __( '%s – SEO plugins may add to the content', 'shawesome-robots-txt' ), shawesome_robots_txt_mode_label( 'base' ) ),
+		/* translators: %s: name of the mode "Exact" */
+		'exact' => sprintf( __( '%s – the content is delivered as is', 'shawesome-robots-txt' ), shawesome_robots_txt_mode_label( 'exact' ) ),
+	);
+	$resources = array(
+		'css_js' => array( __( 'Allow CSS and JavaScript files (recommended)', 'shawesome-robots-txt' ), __( 'Important so that Google understands the layout of your pages and whether they work on mobile devices.', 'shawesome-robots-txt' ) ),
+		'images' => array( __( 'Allow images (recommended)', 'shawesome-robots-txt' ), __( 'Lets crawlers fetch images for Google Images and other image searches.', 'shawesome-robots-txt' ) ),
+		'pdfs'   => array( __( 'Allow PDF files', 'shawesome-robots-txt' ), __( 'Lets crawlers fetch PDF documents, so they can appear in search results.', 'shawesome-robots-txt' ) ),
+	);
+	?>
+	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+		<?php shawesome_robots_txt_form_fields( 'save_site', 'shawesome_robots_txt_save_site_' . $site_id ); ?>
+		<input type="hidden" name="site_id" value="<?php echo esc_attr( $site_id ); ?>">
+
+		<table class="form-table" role="presentation">
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Mode', 'shawesome-robots-txt' ); ?></th>
+				<td>
+					<fieldset>
+						<legend class="screen-reader-text"><?php esc_html_e( 'Mode', 'shawesome-robots-txt' ); ?></legend>
+						<?php foreach ( $choices as $value => $label ) : ?>
+							<label><input type="radio" name="site_mode" value="<?php echo esc_attr( $value ); ?>" <?php checked( $site_mode, $value ); ?>> <?php echo esc_html( $label ); ?></label><br>
+						<?php endforeach; ?>
+					</fieldset>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Crawl-delay', 'shawesome-robots-txt' ); ?></th>
+				<td>
+					<label><input type="checkbox" name="crawl_delay_on" value="1" <?php checked( $rules['crawl_delay'] > 0 ); ?>> <?php esc_html_e( 'Ask crawlers to wait between requests:', 'shawesome-robots-txt' ); ?></label>
+					<input type="number" name="crawl_delay" min="1" max="60" step="1" class="small-text" value="<?php echo esc_attr( $rules['crawl_delay'] ? $rules['crawl_delay'] : 10 ); ?>" aria-label="<?php esc_attr_e( 'Crawl-delay in seconds', 'shawesome-robots-txt' ); ?>">
+					<?php esc_html_e( 'seconds', 'shawesome-robots-txt' ); ?>
+					<p class="description"><?php esc_html_e( 'Google ignores this line; Bing and Yandex, for example, follow it.', 'shawesome-robots-txt' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Resources and assets', 'shawesome-robots-txt' ); ?></th>
+				<td>
+					<fieldset>
+						<legend class="screen-reader-text"><?php esc_html_e( 'Resources and assets', 'shawesome-robots-txt' ); ?></legend>
+						<?php foreach ( $resources as $key => $texts ) : ?>
+							<label><input type="checkbox" name="<?php echo esc_attr( $key ); ?>" value="1" <?php checked( $rules[ $key ] ); ?>> <?php echo esc_html( $texts[0] ); ?></label>
+							<p class="description"><?php echo esc_html( $texts[1] ); ?></p>
+						<?php endforeach; ?>
+					</fieldset>
+					<p class="description"><?php esc_html_e( 'Crawl-delay and blocked resources are added at the end of the robots.txt as a group for all crawlers, in both modes. Crawlers that have a group of their own in the robots.txt do not read it.', 'shawesome-robots-txt' ); ?></p>
+				</td>
+			</tr>
+		</table>
+
+		<div class="shawesome-robots-txt-columns">
+			<div>
+				<h3><?php esc_html_e( 'Database content', 'shawesome-robots-txt' ); ?></h3>
 				<textarea id="shawesome-robots-txt-content" name="content" class="large-text code" rows="16" placeholder="<?php echo esc_attr( shawesome_robots_txt_example_rules( $site_id ) ); ?>"><?php echo esc_textarea( $db_content ); ?></textarea>
 				<p>
 					<button type="button" class="button" aria-controls="shawesome-robots-txt-content" data-shawesome-robots-txt-insert="replace" data-text="<?php echo esc_attr( shawesome_robots_txt_example_rules( $site_id ) ); ?>" data-confirm="<?php esc_attr_e( 'Replace the current content with the example rules?', 'shawesome-robots-txt' ); ?>"><?php esc_html_e( 'Insert example rules', 'shawesome-robots-txt' ); ?></button>
 					<button type="button" class="button" aria-controls="shawesome-robots-txt-content" data-shawesome-robots-txt-insert="append" data-text="<?php echo esc_attr( shawesome_robots_txt_ai_rules() ); ?>"><?php esc_html_e( 'Add: block AI training, allow AI search', 'shawesome-robots-txt' ); ?></button>
 				</p>
 				<p class="description"><?php esc_html_e( 'The buttons only change the field; nothing is saved until you click "Save robots.txt". Leave empty to keep the robots.txt generated by WordPress and SEO plugins.', 'shawesome-robots-txt' ); ?></p>
-				<fieldset>
-					<legend><strong><?php esc_html_e( 'Mode', 'shawesome-robots-txt' ); ?></strong></legend>
-					<?php
-					$site_mode = shawesome_robots_txt_site_mode( $site_id );
-					$choices   = array(
-						/* translators: %s: name of the default mode */
-						''      => sprintf( __( 'Default (%s)', 'shawesome-robots-txt' ), shawesome_robots_txt_mode_label( $settings['mode'] ) ),
-						/* translators: %s: name of the mode "Base" */
-						'base'  => sprintf( __( '%s – SEO plugins may add to the content', 'shawesome-robots-txt' ), shawesome_robots_txt_mode_label( 'base' ) ),
-						/* translators: %s: name of the mode "Exact" */
-						'exact' => sprintf( __( '%s – the content is delivered as is', 'shawesome-robots-txt' ), shawesome_robots_txt_mode_label( 'exact' ) ),
-					);
-					foreach ( $choices as $value => $label ) :
-						?>
-						<label><input type="radio" name="site_mode" value="<?php echo esc_attr( $value ); ?>" <?php checked( $site_mode, $value ); ?>> <?php echo esc_html( $label ); ?></label><br>
-					<?php endforeach; ?>
-				</fieldset>
 				<?php submit_button( __( 'Save robots.txt', 'shawesome-robots-txt' ) ); ?>
-			</form>
+			</div>
+			<div>
+				<?php shawesome_robots_txt_render_live( $site_id ); ?>
+			</div>
 		</div>
-		<div>
-			<?php shawesome_robots_txt_render_live( $site_id ); ?>
-		</div>
-	</div>
+	</form>
 	<?php
 }
 
@@ -1089,7 +1145,7 @@ function shawesome_robots_txt_render_sites() {
 		);
 		?>
 	</p>
-	<p><button type="button" class="button" data-shawesome-robots-txt-scan="all"><?php esc_html_e( 'Check all sites again', 'shawesome-robots-txt' ); ?></button></p>
+	<p class="shawesome-robots-txt-toolbar"><button type="button" class="button" data-shawesome-robots-txt-scan="all"><?php esc_html_e( 'Check all sites again', 'shawesome-robots-txt' ); ?></button></p>
 	<table class="widefat striped">
 		<thead>
 			<tr>
@@ -1206,7 +1262,7 @@ function shawesome_robots_txt_render_faq() {
 	);
 
 	foreach ( $faq as $question => $answer ) {
-		echo '<h2>' . esc_html( $question ) . '</h2><p>' . esc_html( $answer ) . '</p>';
+		echo '<details class="shawesome-robots-txt-faq"><summary>' . esc_html( $question ) . '</summary><p>' . esc_html( $answer ) . '</p></details>';
 	}
 }
 
