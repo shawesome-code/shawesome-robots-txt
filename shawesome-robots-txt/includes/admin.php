@@ -158,6 +158,9 @@ function shawesome_robots_txt_load_page() {
 						'allAllowed' => __( 'All allowed', 'shawesome-robots-txt' ),
 						/* translators: %d: number of blocked file types */
 						'blocked'    => __( '%d blocked', 'shawesome-robots-txt' ),
+					'noneBlocked' => __( 'None blocked', 'shawesome-robots-txt' ),
+					'on'         => __( 'On', 'shawesome-robots-txt' ),
+					'off'        => __( 'Off', 'shawesome-robots-txt' ),
 						'dirty'      => __( 'Unsaved changes', 'shawesome-robots-txt' ),
 						'saved'      => __( 'Saved', 'shawesome-robots-txt' ),
 						'clean'      => __( 'No changes', 'shawesome-robots-txt' ),
@@ -284,11 +287,19 @@ function shawesome_robots_txt_analyze( $robots_txt ) {
 		$ai_blocked += $blocked( $agent ) ? 1 : 0;
 	}
 
+	$seo_blocked = 0;
+	foreach ( shawesome_robots_txt_group_agents( 'seo' ) as $agent ) {
+		$seo_blocked += $blocked( $agent ) ? 1 : 0;
+	}
+
 	return array(
-		'all_blocked' => $blocked( '*' ),
-		'sitemaps'    => $sitemaps,
-		'ai_blocked'  => $ai_blocked,
-		'ai_total'    => count( shawesome_robots_txt_ai_agents() ),
+		'all_blocked'    => $blocked( '*' ),
+		'google_blocked' => $blocked( 'Googlebot' ),
+		'sitemaps'       => $sitemaps,
+		'ai_blocked'     => $ai_blocked,
+		'ai_total'       => count( shawesome_robots_txt_ai_agents() ),
+		'seo_blocked'    => $seo_blocked,
+		'seo_total'      => count( shawesome_robots_txt_group_agents( 'seo' ) ),
 	);
 }
 
@@ -365,6 +376,8 @@ function shawesome_robots_txt_status_items( $site_id, $status ) {
 	} else {
 		if ( $status['all_blocked'] ) {
 			$items[] = array( 'bad', esc_html__( 'All crawlers blocked', 'shawesome-robots-txt' ) );
+		} elseif ( ! empty( $status['google_blocked'] ) ) {
+			$items[] = array( 'bad', esc_html__( 'Googlebot blocked', 'shawesome-robots-txt' ) );
 		}
 
 		$items[] = $status['sitemaps']
@@ -379,6 +392,11 @@ function shawesome_robots_txt_status_items( $site_id, $status ) {
 			$items[] = array( 'warn', esc_html( sprintf( __( 'AI training partly blocked (%1$d of %2$d)', 'shawesome-robots-txt' ), $status['ai_blocked'], $status['ai_total'] ) ) );
 		} else {
 			$items[] = array( 'warn', esc_html__( 'AI training not blocked', 'shawesome-robots-txt' ) );
+		}
+
+		if ( ! empty( $status['seo_blocked'] ) ) {
+			/* translators: 1: number of blocked SEO tools, 2: number of known SEO tools */
+			$items[] = array( 'neutral', esc_html( sprintf( __( 'SEO tools blocked (%1$d of %2$d)', 'shawesome-robots-txt' ), $status['seo_blocked'], $status['seo_total'] ) ) );
 		}
 	}
 
@@ -436,20 +454,6 @@ add_action( 'wp_ajax_shawesome_robots_txt_scan', 'shawesome_robots_txt_ajax_scan
  */
 function shawesome_robots_txt_example_rules( $site_id ) {
 	return "User-agent: *\nAllow: /wp-admin/admin-ajax.php\nDisallow: /wp-admin/\n\nSitemap: " . get_home_url( $site_id, 'wp-sitemap.xml' );
-}
-
-/**
- * Rules that block crawlers collecting content for AI training. AI search
- * crawlers (OAI-SearchBot, Claude-SearchBot, PerplexityBot) get no group of
- * their own on purpose: they follow the rules for all crawlers, a group of
- * their own would make them ignore those.
- *
- * @return string
- */
-function shawesome_robots_txt_ai_rules() {
-	return "# Block crawlers that collect content for AI training.\n"
-		. "# AI search crawlers (OAI-SearchBot, Claude-SearchBot, PerplexityBot) follow the rules for all crawlers.\n"
-		. 'User-agent: ' . implode( "\nUser-agent: ", shawesome_robots_txt_ai_agents() ) . "\nDisallow: /";
 }
 
 /**
@@ -577,6 +581,11 @@ function shawesome_robots_txt_save_site() {
 	$mode = isset( $_POST['site_mode'] ) ? sanitize_key( wp_unslash( $_POST['site_mode'] ) ) : '';
 	shawesome_robots_txt_set_site_option( $site_id, SHAWESOME_ROBOTS_TXT_MODE_OPTION, in_array( $mode, array( 'base', 'exact' ), true ) ? $mode : '' );
 
+	// Lists of keys; unknown keys are dropped by shawesome_robots_txt_site_rules().
+	$keys = function ( $name ) {
+		return isset( $_POST[ $name ] ) ? array_map( 'sanitize_key', (array) wp_unslash( $_POST[ $name ] ) ) : array(); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified above.
+	};
+
 	// Only values that differ from the defaults are stored.
 	$rules = array_filter(
 		array(
@@ -584,9 +593,16 @@ function shawesome_robots_txt_save_site() {
 			'css_js'      => empty( $_POST['css_js'] ) ? 0 : null,
 			'images'      => empty( $_POST['images'] ) ? 0 : null,
 			'pdfs'        => empty( $_POST['pdfs'] ) ? 0 : null,
+			'bots'        => array_values( array_intersect( $keys( 'bots' ), array_keys( shawesome_robots_txt_bot_index() ) ) ),
+			'cleanup'     => array_values( array_intersect( $keys( 'cleanup' ), array_keys( shawesome_robots_txt_cleanup_lines() ) ) ),
+			'woo'         => array_values( array_intersect( $keys( 'woo' ), array( 'cart', 'checkout', 'account', 'add_to_cart' ) ) ),
+			'sitemap'     => empty( $_POST['sitemap'] ) ? null : 1,
 		),
 		function ( $value, $key ) {
-			return 'crawl_delay' === $key ? $value > 0 : null !== $value;
+			if ( 'crawl_delay' === $key ) {
+				return $value > 0;
+			}
+			return null !== $value && array() !== $value;
 		},
 		ARRAY_FILTER_USE_BOTH
 	);
@@ -1013,12 +1029,12 @@ function shawesome_robots_txt_render_editor( $site_id, $updated = '' ) {
 		'images' => array( __( 'Images', 'shawesome-robots-txt' ), __( 'Lets crawlers fetch images for Google Images and other image searches.', 'shawesome-robots-txt' ), true ),
 		'pdfs'   => array( __( 'PDF files', 'shawesome-robots-txt' ), __( 'Lets PDF documents appear in search results.', 'shawesome-robots-txt' ), false ),
 	);
-	$blocked   = 3 - count( array_filter( array( $rules['css_js'], $rules['images'], $rules['pdfs'] ) ) );
+	$woo_active = shawesome_robots_txt_plugin_active( $site_id, 'woocommerce/woocommerce.php' );
 
 	// Lines the preview needs; built in PHP so that they match the robots.txt.
-	$blocked_lines = array();
-	foreach ( array( 'css_js', 'images', 'pdfs' ) as $key ) {
-		$blocked_lines[ $key ] = shawesome_robots_txt_site_rule_lines_for( $key );
+	$resource_lines = array();
+	foreach ( array_keys( $resources ) as $key ) {
+		$resource_lines[ $key ] = shawesome_robots_txt_site_rule_lines_for( $key );
 	}
 	$data = array(
 		'defaultMode' => $settings['mode'],
@@ -1028,7 +1044,11 @@ function shawesome_robots_txt_render_editor( $site_id, $updated = '' ) {
 		'physical'    => is_file( shawesome_robots_txt_physical_file() ),
 		'hidden'      => $hidden,
 		'paths'       => $settings['path_sites'] ? shawesome_robots_txt_path_rules( shawesome_robots_txt_host( $site_id ) ) : '',
-		'blocked'     => $blocked_lines,
+		'bots'        => shawesome_robots_txt_bot_index(),
+		'resources'   => $resource_lines,
+		'cleanup'     => shawesome_robots_txt_cleanup_lines(),
+		'woo'         => $woo_active || $rules['woo'] ? shawesome_robots_txt_woo_lines( $site_id ) : array(),
+		'sitemapUrl'  => shawesome_robots_txt_sitemap_url( $site_id ),
 		'saved'       => 'site' === $updated,
 	);
 	?>
@@ -1079,7 +1099,6 @@ function shawesome_robots_txt_render_editor( $site_id, $updated = '' ) {
 						</div>
 						<div class="shrt-card__actions">
 							<button type="button" class="button button-small" aria-controls="shrt-content" data-shrt-insert="replace" data-text="<?php echo esc_attr( shawesome_robots_txt_example_rules( $site_id ) ); ?>" data-confirm="<?php esc_attr_e( 'Replace the current content with the example rules?', 'shawesome-robots-txt' ); ?>">+ <?php esc_html_e( 'Example rules', 'shawesome-robots-txt' ); ?></button>
-							<button type="button" class="button button-small" aria-controls="shrt-content" data-shrt-insert="append" data-text="<?php echo esc_attr( shawesome_robots_txt_ai_rules() ); ?>">+ <?php esc_html_e( 'Block AI training, allow AI search', 'shawesome-robots-txt' ); ?></button>
 						</div>
 					</header>
 					<textarea id="shrt-content" name="content" class="shrt-rules" spellcheck="false" placeholder="<?php echo esc_attr( shawesome_robots_txt_example_rules( $site_id ) ); ?>"><?php echo esc_textarea( shawesome_robots_txt_get_db_content( $site_id ) ); ?></textarea>
@@ -1089,7 +1108,7 @@ function shawesome_robots_txt_render_editor( $site_id, $updated = '' ) {
 					<header class="shrt-card__head">
 						<div class="shrt-card__title">
 							<h3>3 &middot; <?php esc_html_e( 'Crawler options', 'shawesome-robots-txt' ); ?></h3>
-							<span><?php echo wp_kses( __( 'Added at the end as a <code>User-agent: *</code> group, in both modes. Crawlers with a group of their own ignore it.', 'shawesome-robots-txt' ), array( 'code' => array() ) ); ?></span>
+							<span><?php echo wp_kses( __( 'Added at the end of the robots.txt, in both modes: blocked crawlers as a group of their own, everything else as a <code>User-agent: *</code> group, which crawlers with a group of their own ignore.', 'shawesome-robots-txt' ), array( 'code' => array() ) ); ?></span>
 						</div>
 					</header>
 
@@ -1110,11 +1129,35 @@ function shawesome_robots_txt_render_editor( $site_id, $updated = '' ) {
 						</div>
 					</details>
 
-					<details class="shrt-group" open>
+					<?php
+					shawesome_robots_txt_render_bot_group(
+						__( 'AI crawlers', 'shawesome-robots-txt' ),
+						__( 'Crawlers of AI companies. Checked crawlers are blocked.', 'shawesome-robots-txt' ),
+						array(
+							'ai_training' => array( __( 'Training', 'shawesome-robots-txt' ), __( 'Collect content to train AI models. Blocking them does not affect search engines.', 'shawesome-robots-txt' ) ),
+							'ai_search'   => array( __( 'AI search', 'shawesome-robots-txt' ), __( 'Find content for answers with sources in AI search. Blocked, the site does not appear there.', 'shawesome-robots-txt' ) ),
+							'ai_user'     => array( __( 'Requests on behalf of users', 'shawesome-robots-txt' ), __( 'Fetch a page when a user asks for it. Some of them, such as Perplexity-User and meta-externalfetcher, may ignore robots.txt.', 'shawesome-robots-txt' ) ),
+						),
+						$rules
+					);
+					shawesome_robots_txt_render_bot_group(
+						__( 'SEO tools', 'shawesome-robots-txt' ),
+						__( 'Crawlers of SEO tools that analyze links and content. Checked crawlers are blocked – your own audits with these tools then stop working as well.', 'shawesome-robots-txt' ),
+						array( 'seo' => array( '', '' ) ),
+						$rules
+					);
+					shawesome_robots_txt_render_bot_group(
+						__( 'Web archives', 'shawesome-robots-txt' ),
+						__( 'Crawlers that save copies of pages. The Internet Archive does not promise to follow robots.txt in every case.', 'shawesome-robots-txt' ),
+						array( 'archive' => array( '', '' ) ),
+						$rules
+					);
+					?>
+
+					<details class="shrt-group"<?php echo ! ( $rules['css_js'] && $rules['images'] && $rules['pdfs'] ) ? ' open' : ''; ?>>
 						<summary>
 							<span class="shrt-group__text"><strong><?php esc_html_e( 'Resources and assets', 'shawesome-robots-txt' ); ?></strong><span><?php esc_html_e( 'File types crawlers may fetch. Unchecked types are blocked.', 'shawesome-robots-txt' ); ?></span></span>
-							<?php /* translators: %d: number of blocked file types */ ?>
-							<span class="shrt-badge<?php echo $blocked ? ' is-active' : ''; ?>" data-shrt-summary="resources"><?php echo esc_html( $blocked ? sprintf( __( '%d blocked', 'shawesome-robots-txt' ), $blocked ) : __( 'All allowed', 'shawesome-robots-txt' ) ); ?></span>
+							<span class="shrt-badge" data-shrt-summary="allow"></span>
 						</summary>
 						<?php foreach ( $resources as $key => $texts ) : ?>
 							<div class="shrt-option">
@@ -1129,6 +1172,68 @@ function shawesome_robots_txt_render_editor( $site_id, $updated = '' ) {
 							</div>
 						<?php endforeach; ?>
 					</details>
+
+					<?php
+					shawesome_robots_txt_render_path_group(
+						'cleanup',
+						__( 'WordPress cleanup', 'shawesome-robots-txt' ),
+						__( 'Pages without value in search results that waste crawl budget. Checked paths are blocked.', 'shawesome-robots-txt' ),
+						array(
+							'search'     => array( __( 'Internal search results', 'shawesome-robots-txt' ), __( 'Google recommends keeping search result pages out of the crawl.', 'shawesome-robots-txt' ) ),
+							'replytocom' => array( __( 'Reply links of comments', 'shawesome-robots-txt' ), __( 'Copies of a post for every comment reply (?replytocom=).', 'shawesome-robots-txt' ) ),
+							'feeds'      => array( __( 'Feeds of posts, archives and comments', 'shawesome-robots-txt' ), __( 'The main feed /feed/ stays open.', 'shawesome-robots-txt' ) ),
+						),
+						shawesome_robots_txt_cleanup_lines(),
+						$rules['cleanup']
+					);
+					if ( $woo_active ) {
+						shawesome_robots_txt_render_path_group(
+							'woo',
+							__( 'WooCommerce', 'shawesome-robots-txt' ),
+							__( 'Shop pages that belong to a single visitor. Checked paths are blocked.', 'shawesome-robots-txt' ),
+							array(
+								'cart'        => array( __( 'Cart', 'shawesome-robots-txt' ), '' ),
+								'checkout'    => array( __( 'Checkout', 'shawesome-robots-txt' ), '' ),
+								'account'     => array( __( 'My account', 'shawesome-robots-txt' ), '' ),
+								'add_to_cart' => array( __( '"Add to cart" links', 'shawesome-robots-txt' ), __( 'Links with ?add-to-cart= create a new cart for every crawler request.', 'shawesome-robots-txt' ) ),
+							),
+							shawesome_robots_txt_woo_lines( $site_id ),
+							$rules['woo']
+						);
+					}
+					?>
+
+					<details class="shrt-group"<?php echo $rules['sitemap'] ? ' open' : ''; ?>>
+						<summary>
+							<span class="shrt-group__text"><strong><?php esc_html_e( 'Sitemap', 'shawesome-robots-txt' ); ?></strong><span><?php esc_html_e( 'Tell crawlers where the sitemap of this site is.', 'shawesome-robots-txt' ); ?></span></span>
+							<span class="shrt-badge" data-shrt-summary="toggle"></span>
+						</summary>
+						<div class="shrt-option">
+							<input type="checkbox" id="shrt-sitemap" name="sitemap" value="1" <?php checked( $rules['sitemap'] ); ?>>
+							<div>
+								<label for="shrt-sitemap" class="shrt-option__title"><?php esc_html_e( 'Add the sitemap', 'shawesome-robots-txt' ); ?></label>
+								<code><?php echo esc_html( shawesome_robots_txt_sitemap_url( $site_id ) ); ?></code>
+								<p><?php esc_html_e( 'The sitemap of Yoast SEO, Rank Math or All in One SEO if active, otherwise the one of WordPress. Not added again if the robots.txt already links it.', 'shawesome-robots-txt' ); ?></p>
+							</div>
+						</div>
+					</details>
+
+					<?php
+					shawesome_robots_txt_render_bot_group(
+						__( 'Social media', 'shawesome-robots-txt' ),
+						__( 'Crawlers that build link previews (title, image, description) when your pages are shared. Blocked, shared links look plain or broken.', 'shawesome-robots-txt' ),
+						array( 'social' => array( '', '' ) ),
+						$rules,
+						true
+					);
+					shawesome_robots_txt_render_bot_group(
+						__( 'Search engines', 'shawesome-robots-txt' ),
+						__( 'Blocked, the site disappears from the results of that search engine. To keep a site out of all search engines, use "Discourage search engines from indexing this site" in the reading settings of WordPress instead.', 'shawesome-robots-txt' ),
+						array( 'search' => array( '', '' ) ),
+						$rules,
+						true
+					);
+					?>
 				</section>
 			</div>
 
@@ -1156,6 +1261,96 @@ function shawesome_robots_txt_render_editor( $site_id, $updated = '' ) {
 			<?php submit_button( __( 'Save robots.txt', 'shawesome-robots-txt' ), 'primary', 'submit', false ); ?>
 		</div>
 	</form>
+	<?php
+}
+
+/**
+ * Render a group of crawlers that can be blocked one by one.
+ *
+ * @param string $title           Title.
+ * @param string $desc            Description.
+ * @param array  $sections        Group key of shawesome_robots_txt_bots() => array( heading, note ); empty strings for none.
+ * @param array  $rules           Options of the site (shawesome_robots_txt_site_rules()).
+ * @param bool   $not_recommended Whether to mark the group as not recommended.
+ */
+function shawesome_robots_txt_render_bot_group( $title, $desc, $sections, $rules, $not_recommended = false ) {
+	$bots = shawesome_robots_txt_bots();
+	$open = false;
+	foreach ( array_keys( $sections ) as $group ) {
+		$open = $open || array_intersect( array_keys( $bots[ $group ] ), $rules['bots'] );
+	}
+	?>
+	<details class="shrt-group"<?php echo $open ? ' open' : ''; ?>>
+		<summary>
+			<span class="shrt-group__text">
+				<strong>
+					<?php echo esc_html( $title ); ?>
+					<?php if ( $not_recommended ) : ?>
+						<span class="shrt-tag shrt-tag--warn"><?php esc_html_e( 'Not recommended', 'shawesome-robots-txt' ); ?></span>
+					<?php endif; ?>
+				</strong>
+				<span><?php echo esc_html( $desc ); ?></span>
+			</span>
+			<span class="shrt-badge" data-shrt-summary="block"></span>
+		</summary>
+		<?php foreach ( $sections as $group => $texts ) : ?>
+			<?php if ( '' !== $texts[0] ) : ?>
+				<p class="shrt-subhead"><strong><?php echo esc_html( $texts[0] ); ?></strong> – <?php echo esc_html( $texts[1] ); ?></p>
+			<?php endif; ?>
+			<?php foreach ( $bots[ $group ] as $key => $bot ) : ?>
+				<div class="shrt-option shrt-option--compact">
+					<input type="checkbox" id="shrt-bot-<?php echo esc_attr( $key ); ?>" name="bots[]" value="<?php echo esc_attr( $key ); ?>" <?php checked( in_array( $key, $rules['bots'], true ) ); ?>>
+					<div>
+						<?php if ( array( '*' ) === $bot[1] ) : ?>
+							<label for="shrt-bot-<?php echo esc_attr( $key ); ?>" class="shrt-option__title"><?php esc_html_e( 'All crawlers', 'shawesome-robots-txt' ); ?></label>
+							<code>*</code>
+							<p class="shrt-option__warn"><?php esc_html_e( 'Blocks every crawler, including all search engines. Only for sites that must not be crawled at all.', 'shawesome-robots-txt' ); ?></p>
+						<?php else : ?>
+							<label for="shrt-bot-<?php echo esc_attr( $key ); ?>" class="shrt-option__title"><?php echo esc_html( $bot[1][0] ); ?></label>
+							<span class="shrt-option__by"><?php echo esc_html( $bot[0] ); ?></span>
+							<?php if ( count( $bot[1] ) > 1 ) : ?>
+								<?php /* translators: %s: further user agent tokens of the same operator */ ?>
+								<p><?php echo esc_html( sprintf( __( 'Also: %s', 'shawesome-robots-txt' ), implode( ', ', array_slice( $bot[1], 1 ) ) ) ); ?></p>
+							<?php endif; ?>
+						<?php endif; ?>
+					</div>
+				</div>
+			<?php endforeach; ?>
+		<?php endforeach; ?>
+	</details>
+	<?php
+}
+
+/**
+ * Render a group of paths that can be blocked one by one.
+ *
+ * @param string $name     Field name ('cleanup' or 'woo').
+ * @param string $title    Title.
+ * @param string $desc     Description.
+ * @param array  $items    Key => array( label, description ).
+ * @param array  $lines    Key => Disallow lines.
+ * @param array  $selected Blocked keys.
+ */
+function shawesome_robots_txt_render_path_group( $name, $title, $desc, $items, $lines, $selected ) {
+	?>
+	<details class="shrt-group"<?php echo $selected ? ' open' : ''; ?>>
+		<summary>
+			<span class="shrt-group__text"><strong><?php echo esc_html( $title ); ?></strong><span><?php echo esc_html( $desc ); ?></span></span>
+			<span class="shrt-badge" data-shrt-summary="block"></span>
+		</summary>
+		<?php foreach ( $items as $key => $texts ) : ?>
+			<div class="shrt-option shrt-option--compact">
+				<input type="checkbox" id="shrt-<?php echo esc_attr( $name . '-' . $key ); ?>" name="<?php echo esc_attr( $name ); ?>[]" value="<?php echo esc_attr( $key ); ?>" <?php checked( in_array( $key, $selected, true ) ); ?>>
+				<div>
+					<label for="shrt-<?php echo esc_attr( $name . '-' . $key ); ?>" class="shrt-option__title"><?php echo esc_html( $texts[0] ); ?></label>
+					<span class="shrt-option__by"><?php echo esc_html( implode( ' ', str_replace( 'Disallow: ', '', $lines[ $key ] ) ) ); ?></span>
+					<?php if ( '' !== $texts[1] ) : ?>
+						<p><?php echo esc_html( $texts[1] ); ?></p>
+					<?php endif; ?>
+				</div>
+			</div>
+		<?php endforeach; ?>
+	</details>
 	<?php
 }
 

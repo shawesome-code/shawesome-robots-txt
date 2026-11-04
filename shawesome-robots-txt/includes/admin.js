@@ -108,17 +108,50 @@
 		return checked && checked.value ? checked.value : data.defaultMode;
 	}
 
-	function optionLines() {
-		var lines = [];
+	function checked( name ) {
+		return [].slice.call( form.querySelectorAll( 'input[name="' + name + '[]"]:checked' ) ).map( function ( input ) {
+			return input.value;
+		} );
+	}
+
+	// Same order and lines as shawesome_robots_txt_added_block() in PHP.
+	function addedBlock() {
+		var tokens = [],
+			star = [],
+			parts = [];
+
 		if ( fields.crawl_delay_on.checked ) {
-			lines.push( 'Crawl-delay: ' + Math.min( 60, Math.max( 1, parseInt( fields.crawl_delay.value, 10 ) || 10 ) ) );
+			star.push( 'Crawl-delay: ' + Math.min( 60, Math.max( 1, parseInt( fields.crawl_delay.value, 10 ) || 10 ) ) );
 		}
-		[ 'css_js', 'images', 'pdfs' ].forEach( function ( key ) {
-			if ( ! fields[ key ].checked ) {
-				lines = lines.concat( data.blocked[ key ] );
+		checked( 'bots' ).forEach( function ( key ) {
+			if ( 1 === data.bots[ key ].length && '*' === data.bots[ key ][ 0 ] ) {
+				star.push( 'Disallow: /' );
+			} else {
+				tokens = tokens.concat( data.bots[ key ] );
 			}
 		} );
-		return lines;
+		[ 'css_js', 'images', 'pdfs' ].forEach( function ( key ) {
+			if ( ! fields[ key ].checked ) {
+				star = star.concat( data.resources[ key ] );
+			}
+		} );
+		checked( 'cleanup' ).forEach( function ( key ) {
+			star = star.concat( data.cleanup[ key ] );
+		} );
+		checked( 'woo' ).forEach( function ( key ) {
+			star = star.concat( data.woo[ key ] || [] );
+		} );
+
+		if ( tokens.length ) {
+			parts.push( 'User-agent: ' + tokens.join( '\nUser-agent: ' ) + '\nDisallow: /' );
+		}
+		if ( star.length ) {
+			parts.push( 'User-agent: *\n' + star.join( '\n' ) );
+		}
+		if ( fields.sitemap.checked ) {
+			parts.push( 'Sitemap: ' + data.sitemapUrl );
+		}
+		return parts.length ? '# Added by shawesome robots.txt\n' + parts.join( '\n\n' ) : '';
 	}
 
 	function block( label, color, text ) {
@@ -143,15 +176,15 @@
 			output.appendChild( block( c.labels.live, '#8c8f94', null === data.live ? c.labels.liveError : data.live ) );
 			notes.push( c.labels.liveNote );
 		} else {
-			var lines = optionLines(),
+			var added = addedBlock(),
 				rules = null !== data.file ? data.file : fields.content.value.trim();
 
 			if ( 'base' === mode() && data.seo ) {
 				output.appendChild( block( format( c.labels.seo, data.seo ), '#dcdcde', c.labels.seoText ) );
 			}
 			output.appendChild( block( null !== data.file ? c.labels.file : c.labels.rules, '#2271b1', rules || c.labels.empty ) );
-			if ( lines.length && ! data.hidden ) {
-				output.appendChild( block( c.labels.options, '#dba617', '# Added by shawesome robots.txt\nUser-agent: *\n' + lines.join( '\n' ) ) );
+			if ( added && ! data.hidden ) {
+				output.appendChild( block( c.labels.options, '#dba617', added ) );
 			}
 			if ( data.paths ) {
 				output.appendChild( block( c.labels.paths, '#8c8f94', data.paths ) );
@@ -170,18 +203,36 @@
 		note.hidden = ! note.textContent;
 	}
 
+	// Badges of the option groups: "rate", "allow" (unchecked = blocked), "block" (checked = blocked), "toggle".
 	function summaries() {
-		var rate = form.querySelector( '[data-shrt-summary="rate"]' ),
-			resources = form.querySelector( '[data-shrt-summary="resources"]' ),
-			blocked = [ 'css_js', 'images', 'pdfs' ].filter( function ( key ) {
-				return ! fields[ key ].checked;
-			} ).length;
-
 		fields.crawl_delay.disabled = ! fields.crawl_delay_on.checked;
-		rate.textContent = fields.crawl_delay_on.checked ? format( c.labels.delay, parseInt( fields.crawl_delay.value, 10 ) || 10 ) : c.labels.noLimit;
-		rate.classList.toggle( 'is-active', fields.crawl_delay_on.checked );
-		resources.textContent = blocked ? format( c.labels.blocked, blocked ) : c.labels.allAllowed;
-		resources.classList.toggle( 'is-active', blocked > 0 );
+
+		form.querySelectorAll( '[data-shrt-summary]' ).forEach( function ( badge ) {
+			var type = badge.getAttribute( 'data-shrt-summary' ),
+				boxes = [].slice.call( badge.closest( 'details' ).querySelectorAll( 'input[type="checkbox"]' ) ),
+				on = boxes.filter( function ( box ) {
+					return box.checked;
+				} ).length,
+				text,
+				active;
+
+			if ( 'rate' === type ) {
+				active = fields.crawl_delay_on.checked;
+				text = active ? format( c.labels.delay, parseInt( fields.crawl_delay.value, 10 ) || 10 ) : c.labels.noLimit;
+			} else if ( 'allow' === type ) {
+				active = on < boxes.length;
+				text = active ? format( c.labels.blocked, boxes.length - on ) : c.labels.allAllowed;
+			} else if ( 'block' === type ) {
+				active = on > 0;
+				text = active ? format( c.labels.blocked, on ) : c.labels.noneBlocked;
+			} else {
+				active = on > 0;
+				text = active ? c.labels.on : c.labels.off;
+			}
+
+			badge.textContent = text;
+			badge.classList.toggle( 'is-active', active );
+		} );
 	}
 
 	function snapshot() {

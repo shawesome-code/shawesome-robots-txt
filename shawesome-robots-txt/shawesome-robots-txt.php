@@ -98,9 +98,12 @@ function shawesome_robots_txt_mode( $site_id ) {
  *
  * - crawl_delay: seconds, 0 = no Crawl-delay line.
  * - css_js, images, pdfs: allowed (default) or blocked with Disallow lines.
+ * - bots: keys of blocked crawlers (see shawesome_robots_txt_bots()).
+ * - cleanup, woo: keys of blocked WordPress and WooCommerce paths.
+ * - sitemap: add a Sitemap line for the sitemap of the site.
  *
  * @param int $site_id Site ID (ignored on a single site).
- * @return array{crawl_delay: int, css_js: bool, images: bool, pdfs: bool}
+ * @return array{crawl_delay: int, css_js: bool, images: bool, pdfs: bool, bots: string[], cleanup: string[], woo: string[], sitemap: bool}
  */
 function shawesome_robots_txt_site_rules( $site_id ) {
 	$rules = wp_parse_args(
@@ -110,6 +113,10 @@ function shawesome_robots_txt_site_rules( $site_id ) {
 			'css_js'      => true,
 			'images'      => true,
 			'pdfs'        => true,
+			'bots'        => array(),
+			'cleanup'     => array(),
+			'woo'         => array(),
+			'sitemap'     => false,
 		)
 	);
 
@@ -118,35 +125,234 @@ function shawesome_robots_txt_site_rules( $site_id ) {
 		'css_js'      => (bool) $rules['css_js'],
 		'images'      => (bool) $rules['images'],
 		'pdfs'        => (bool) $rules['pdfs'],
+		'bots'        => array_values( array_intersect( (array) $rules['bots'], array_keys( shawesome_robots_txt_bot_index() ) ) ),
+		'cleanup'     => array_values( array_intersect( (array) $rules['cleanup'], array_keys( shawesome_robots_txt_cleanup_lines() ) ) ),
+		'woo'         => array_values( array_intersect( (array) $rules['woo'], array( 'cart', 'checkout', 'account', 'add_to_cart' ) ) ),
+		'sitemap'     => (bool) $rules['sitemap'],
 	);
 }
 
 /**
- * Lines for the added rules of a site: Crawl-delay and Disallow lines for
- * blocked resources. Patterns use "*" and "$" as defined in RFC 9309; "?"
- * matches the query string of versioned CSS and JavaScript files.
+ * Crawlers that can be blocked, by group: key => array( operator, user agent
+ * tokens ). Sources: the crawler documentation of the operators where
+ * available (OpenAI, Anthropic, Google, Apple, Meta, Perplexity, Ahrefs,
+ * Semrush), otherwise tokens in common use (checked 2026-11). The token "*"
+ * stands for all crawlers.
+ *
+ * @return array<string, array<string, array{0: string, 1: string[]}>>
+ */
+function shawesome_robots_txt_bots() {
+	return array(
+		'ai_training' => array(
+			'gptbot'      => array( 'OpenAI', array( 'GPTBot' ) ),
+			'claudebot'   => array( 'Anthropic', array( 'ClaudeBot' ) ),
+			'google_ext'  => array( 'Google (Gemini)', array( 'Google-Extended' ) ),
+			'apple_ext'   => array( 'Apple', array( 'Applebot-Extended' ) ),
+			'meta_agent'  => array( 'Meta', array( 'meta-externalagent' ) ),
+			'ccbot'       => array( 'Common Crawl', array( 'CCBot' ) ),
+		),
+		'ai_search'   => array(
+			'oai_search'    => array( 'OpenAI', array( 'OAI-SearchBot' ) ),
+			'claude_search' => array( 'Anthropic', array( 'Claude-SearchBot' ) ),
+			'perplexity'    => array( 'Perplexity', array( 'PerplexityBot' ) ),
+			'meta_index'    => array( 'Meta', array( 'meta-webindexer' ) ),
+		),
+		'ai_user'     => array(
+			'chatgpt_user'    => array( 'OpenAI', array( 'ChatGPT-User' ) ),
+			'claude_user'     => array( 'Anthropic', array( 'Claude-User' ) ),
+			'perplexity_user' => array( 'Perplexity', array( 'Perplexity-User' ) ),
+			'meta_fetcher'    => array( 'Meta', array( 'meta-externalfetcher' ) ),
+		),
+		'seo'         => array(
+			'ahrefs'     => array( 'Ahrefs', array( 'AhrefsBot', 'AhrefsSiteAudit' ) ),
+			'semrush'    => array( 'Semrush', array( 'SemrushBot', 'SiteAuditBot', 'SemrushBot-BA', 'SemrushBot-SI', 'SemrushBot-SWA', 'SemrushBot-OCOB', 'SemrushBot-FT', 'SemrushBot-ESI', 'SplitSignalBot' ) ),
+			'moz'        => array( 'Moz', array( 'dotbot', 'rogerbot' ) ),
+			'majestic'   => array( 'Majestic', array( 'MJ12bot' ) ),
+			'blexbot'    => array( 'WebMeUp', array( 'BLEXBot' ) ),
+			'serpstat'   => array( 'Serpstat', array( 'serpstatbot' ) ),
+			'dataforseo' => array( 'DataForSEO', array( 'DataForSeoBot' ) ),
+		),
+		'archive'     => array(
+			'internet_archive' => array( 'Internet Archive', array( 'archive.org_bot', 'ia_archiver' ) ),
+		),
+		'social'      => array(
+			'facebook'  => array( 'Meta (Facebook, Instagram, Messenger)', array( 'facebookexternalhit' ) ),
+			'x'         => array( 'X', array( 'Twitterbot' ) ),
+			'linkedin'  => array( 'LinkedIn', array( 'LinkedInBot' ) ),
+			'pinterest' => array( 'Pinterest', array( 'Pinterestbot' ) ),
+			'slack'     => array( 'Slack', array( 'Slackbot' ) ),
+			'whatsapp'  => array( 'WhatsApp', array( 'WhatsApp' ) ),
+			'telegram'  => array( 'Telegram', array( 'TelegramBot' ) ),
+			'discord'   => array( 'Discord', array( 'Discordbot' ) ),
+		),
+		'search'      => array(
+			'google'     => array( 'Google', array( 'Googlebot' ) ),
+			'bing'       => array( 'Microsoft Bing', array( 'bingbot' ) ),
+			'apple'      => array( 'Apple', array( 'Applebot' ) ),
+			'duckduckgo' => array( 'DuckDuckGo', array( 'DuckDuckBot' ) ),
+			'yandex'     => array( 'Yandex', array( 'YandexBot' ) ),
+			'baidu'      => array( 'Baidu', array( 'Baiduspider' ) ),
+			'all'        => array( '', array( '*' ) ),
+		),
+	);
+}
+
+/**
+ * All crawlers that can be blocked, without groups.
+ *
+ * @return array<string, string[]> Key => user agent tokens.
+ */
+function shawesome_robots_txt_bot_index() {
+	$index = array();
+	foreach ( shawesome_robots_txt_bots() as $bots ) {
+		foreach ( $bots as $key => $bot ) {
+			$index[ $key ] = $bot[1];
+		}
+	}
+
+	return $index;
+}
+
+/**
+ * Disallow lines for WordPress paths that waste crawl budget.
+ *
+ * @return array<string, string[]> Key => lines.
+ */
+function shawesome_robots_txt_cleanup_lines() {
+	return array(
+		'search'     => array( 'Disallow: /?s=', 'Disallow: /search/' ),
+		'replytocom' => array( 'Disallow: /*?replytocom=' ),
+		'feeds'      => array( 'Disallow: /comments/feed/', 'Disallow: /*/feed/' ),
+	);
+}
+
+/**
+ * Disallow lines for the WooCommerce pages of a site, from the pages set in
+ * WooCommerce (the usual slugs if none is set).
  *
  * @param int $site_id Site ID (ignored on a single site).
- * @return string[]
+ * @return array<string, string[]> Key => lines.
  */
-function shawesome_robots_txt_site_rule_lines( $site_id ) {
-	$rules = shawesome_robots_txt_site_rules( $site_id );
-	$lines = array();
-
-	if ( $rules['crawl_delay'] ) {
-		$lines[] = 'Crawl-delay: ' . $rules['crawl_delay'];
+function shawesome_robots_txt_woo_lines( $site_id ) {
+	if ( is_multisite() ) {
+		switch_to_blog( $site_id );
 	}
-	foreach ( array( 'css_js', 'images', 'pdfs' ) as $key ) {
-		if ( ! $rules[ $key ] ) {
-			$lines = array_merge( $lines, shawesome_robots_txt_site_rule_lines_for( $key ) );
-		}
+
+	$lines = array();
+	foreach ( array(
+		'cart'     => array( 'woocommerce_cart_page_id', 'cart' ),
+		'checkout' => array( 'woocommerce_checkout_page_id', 'checkout' ),
+		'account'  => array( 'woocommerce_myaccount_page_id', 'my-account' ),
+	) as $key => $page ) {
+		$page_id       = (int) get_option( $page[0] );
+		$uri           = $page_id ? get_page_uri( $page_id ) : '';
+		$lines[ $key ] = array( 'Disallow: /' . ( $uri ? $uri : $page[1] ) . '/' );
+	}
+	$lines['add_to_cart'] = array( 'Disallow: /*?add-to-cart=' );
+
+	if ( is_multisite() ) {
+		restore_current_blog();
 	}
 
 	return $lines;
 }
 
 /**
- * Disallow lines that block a type of resource.
+ * Whether a plugin is active on a site (network-wide or on the site).
+ *
+ * @param int    $site_id Site ID (ignored on a single site).
+ * @param string $file    Plugin file, e.g. 'wordpress-seo/wp-seo.php'.
+ * @return bool
+ */
+function shawesome_robots_txt_plugin_active( $site_id, $file ) {
+	$active = (array) shawesome_robots_txt_get_site_option( $site_id, 'active_plugins', array() );
+	if ( is_multisite() ) {
+		$active = array_merge( $active, array_keys( (array) get_site_option( 'active_sitewide_plugins', array() ) ) );
+	}
+
+	return in_array( $file, $active, true );
+}
+
+/**
+ * URL of the sitemap of a site: the one of Yoast SEO, Rank Math or All in
+ * One SEO if active, otherwise the sitemap of WordPress.
+ *
+ * @param int $site_id Site ID (ignored on a single site).
+ * @return string
+ */
+function shawesome_robots_txt_sitemap_url( $site_id ) {
+	if ( shawesome_robots_txt_plugin_active( $site_id, 'wordpress-seo/wp-seo.php' ) || shawesome_robots_txt_plugin_active( $site_id, 'seo-by-rank-math/rank-math.php' ) ) {
+		return get_home_url( $site_id, 'sitemap_index.xml' );
+	}
+	if ( shawesome_robots_txt_plugin_active( $site_id, 'all-in-one-seo-pack/all_in_one_seo_pack.php' ) || shawesome_robots_txt_plugin_active( $site_id, 'all-in-one-seo-pack-pro/all_in_one_seo_pack.php' ) ) {
+		return get_home_url( $site_id, 'sitemap.xml' );
+	}
+
+	return get_home_url( $site_id, 'wp-sitemap.xml' );
+}
+
+/**
+ * The block the plugin adds for a site: a group that blocks the selected
+ * crawlers, a group for all crawlers (Crawl-delay, blocked resources and
+ * paths) and the Sitemap line.
+ *
+ * @param int    $site_id Site ID (ignored on a single site).
+ * @param string $output  robots.txt so far; a sitemap already in it is not added again.
+ * @return string Block, empty if there is nothing to add.
+ */
+function shawesome_robots_txt_added_block( $site_id, $output = '' ) {
+	$rules  = shawesome_robots_txt_site_rules( $site_id );
+	$index  = shawesome_robots_txt_bot_index();
+	$tokens = array();
+	$star   = array();
+	$parts  = array();
+
+	if ( $rules['crawl_delay'] ) {
+		$star[] = 'Crawl-delay: ' . $rules['crawl_delay'];
+	}
+	foreach ( $rules['bots'] as $key ) {
+		if ( array( '*' ) === $index[ $key ] ) {
+			$star[] = 'Disallow: /';
+		} else {
+			$tokens = array_merge( $tokens, $index[ $key ] );
+		}
+	}
+	foreach ( array( 'css_js', 'images', 'pdfs' ) as $key ) {
+		if ( ! $rules[ $key ] ) {
+			$star = array_merge( $star, shawesome_robots_txt_site_rule_lines_for( $key ) );
+		}
+	}
+	$cleanup = shawesome_robots_txt_cleanup_lines();
+	foreach ( $rules['cleanup'] as $key ) {
+		$star = array_merge( $star, $cleanup[ $key ] );
+	}
+	if ( $rules['woo'] ) {
+		$woo = shawesome_robots_txt_woo_lines( $site_id );
+		foreach ( $rules['woo'] as $key ) {
+			$star = array_merge( $star, $woo[ $key ] );
+		}
+	}
+
+	if ( $tokens ) {
+		$parts[] = 'User-agent: ' . implode( "\nUser-agent: ", $tokens ) . "\nDisallow: /";
+	}
+	if ( $star ) {
+		$parts[] = "User-agent: *\n" . implode( "\n", $star );
+	}
+	if ( $rules['sitemap'] ) {
+		$url = shawesome_robots_txt_sitemap_url( $site_id );
+		if ( false === stripos( $output, $url ) ) {
+			$parts[] = 'Sitemap: ' . $url;
+		}
+	}
+
+	return $parts ? "# Added by shawesome robots.txt\n" . implode( "\n\n", $parts ) : '';
+}
+
+/**
+ * Disallow lines that block a type of resource. Patterns use "*" and "$" as
+ * defined in RFC 9309; "?" matches the query string of versioned CSS and
+ * JavaScript files.
  *
  * @param string $key 'css_js', 'images' or 'pdfs'.
  * @return string[]
@@ -171,17 +377,29 @@ function shawesome_robots_txt_site_rule_lines_for( $key ) {
 }
 
 /**
- * Crawlers that collect content for AI training, used for the example block
- * and the status. AI search crawlers (OAI-SearchBot, Claude-SearchBot,
- * PerplexityBot) are not listed on purpose.
+ * User agent tokens of a group of crawlers, used for the status.
  *
- * Sources: the crawler documentation of OpenAI, Anthropic, Google, Apple and
- * Common Crawl (checked 2026-11).
+ * @param string $group Group key of shawesome_robots_txt_bots().
+ * @return string[] One token per crawler (the first one).
+ */
+function shawesome_robots_txt_group_agents( $group ) {
+	$bots = shawesome_robots_txt_bots();
+
+	return array_map(
+		function ( $bot ) {
+			return $bot[1][0];
+		},
+		isset( $bots[ $group ] ) ? array_values( $bots[ $group ] ) : array()
+	);
+}
+
+/**
+ * Crawlers that collect content for AI training.
  *
  * @return string[] User agent tokens.
  */
 function shawesome_robots_txt_ai_agents() {
-	return array( 'GPTBot', 'ClaudeBot', 'Google-Extended', 'Applebot-Extended', 'CCBot' );
+	return shawesome_robots_txt_group_agents( 'ai_training' );
 }
 
 /**
@@ -550,9 +768,8 @@ function shawesome_robots_txt_filter_added_rules( $output, $public ) {
 	$blocks = array();
 
 	// Like the custom robots.txt, the site rules are left out on hidden sites.
-	$lines = shawesome_robots_txt_site_rule_lines( $site_id );
-	if ( $lines && ! ( $settings['respect_public'] && ! $public ) ) {
-		$blocks[] = "# Added by shawesome robots.txt\nUser-agent: *\n" . implode( "\n", $lines );
+	if ( ! ( $settings['respect_public'] && ! $public ) ) {
+		$blocks[] = shawesome_robots_txt_added_block( $site_id, $output );
 	}
 
 	if ( $settings['path_sites'] ) {
