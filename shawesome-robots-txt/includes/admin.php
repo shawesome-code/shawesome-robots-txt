@@ -130,7 +130,7 @@ function shawesome_robots_txt_load_page() {
 			wp_enqueue_style( 'shawesome-robots-txt' );
 			wp_add_inline_style(
 				'shawesome-robots-txt',
-				'.shawesome-robots-txt-version{margin-left:8px;font-size:13px;font-weight:400;color:#646970}'
+				'.shawesome-robots-txt-version{margin-top:0;color:#646970}'
 				. '.shawesome-robots-txt-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}'
 				. '@media (max-width:960px){.shawesome-robots-txt-columns{grid-template-columns:minmax(0,1fr)}}'
 			);
@@ -360,10 +360,10 @@ function shawesome_robots_txt_render_page() {
 	// phpcs:enable
 
 	echo '<div class="wrap">';
-	echo '<h1>shawesome robots.txt <span class="shawesome-robots-txt-version">';
+	// Same text as the plugin name in the header, so it shares its translation.
+	echo '<h1>' . esc_html__( 'shawesome robots.txt – Per-Site Rules for Single Sites and Multisite', 'shawesome-robots-txt' ) . '</h1>';
 	/* translators: %s: version number of the plugin */
-	echo esc_html( sprintf( __( 'Version %s', 'shawesome-robots-txt' ), SHAWESOME_ROBOTS_TXT_VERSION ) );
-	echo '</span></h1>';
+	echo '<p class="shawesome-robots-txt-version">' . esc_html( sprintf( __( 'Version %s', 'shawesome-robots-txt' ), SHAWESOME_ROBOTS_TXT_VERSION ) ) . '</p>';
 
 	if ( $site ) {
 		$site_id = (int) $site->blog_id;

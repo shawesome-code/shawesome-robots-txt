@@ -11,6 +11,7 @@ msgstr ""
 "X-Domain: shawesome-robots-txt\n"
 
 #. Plugin Name of the plugin
+#: includes/admin.php:364
 msgid "shawesome robots.txt – Per-Site Rules for Single Sites and Multisite"
 msgstr ""
 
@@ -35,7 +36,7 @@ msgid "Site not found."
 msgstr ""
 
 #. translators: %s: version number of the plugin
-#: includes/admin.php:365
+#: includes/admin.php:366
 msgid "Version %s"
 msgstr ""
 
