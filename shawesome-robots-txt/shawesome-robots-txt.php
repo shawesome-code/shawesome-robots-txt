@@ -66,7 +66,8 @@ function shawesome_robots_txt_set_site_option( $site_id, $name, $value ) {
 }
 
 /**
- * Mode chosen for a site: 'base', 'exact' or '' (use the default mode).
+ * Mode chosen for a site: 'base', 'exact', 'block' or '' (use the default
+ * mode). 'block' can only be chosen per site, not as the default mode.
  *
  * @param int $site_id Site ID (ignored on a single site).
  * @return string
@@ -74,14 +75,14 @@ function shawesome_robots_txt_set_site_option( $site_id, $name, $value ) {
 function shawesome_robots_txt_site_mode( $site_id ) {
 	$mode = (string) shawesome_robots_txt_get_site_option( $site_id, SHAWESOME_ROBOTS_TXT_MODE_OPTION );
 
-	return in_array( $mode, array( 'base', 'exact' ), true ) ? $mode : '';
+	return in_array( $mode, array( 'base', 'exact', 'block' ), true ) ? $mode : '';
 }
 
 /**
  * Mode in effect for a site: its own or the default mode.
  *
  * @param int $site_id Site ID (ignored on a single site).
- * @return string 'base' or 'exact'.
+ * @return string 'base', 'exact' or 'block'.
  */
 function shawesome_robots_txt_mode( $site_id ) {
 	$mode = shawesome_robots_txt_site_mode( $site_id );
@@ -782,17 +783,33 @@ function shawesome_robots_txt_filter_added_rules( $output, $public ) {
 }
 
 /**
+ * Filter callback for 'robots_txt' in 'block' mode, after all SEO plugins:
+ * block all crawlers from all paths. The rules and options of the site stay
+ * stored, but are not delivered.
+ *
+ * @return string
+ */
+function shawesome_robots_txt_filter_block() {
+	return "User-agent: *\nDisallow: /\n";
+}
+
+/**
  * Register the robots.txt filters according to the mode of the current site.
  * Runs on 'do_robotstxt', so only for robots.txt requests.
  *
  * 'exact' runs at PHP_INT_MAX, after Yoast SEO (99999) and All in One SEO
  * (10000), which would otherwise append to or rebuild the file. 'base' runs
  * at 10, before them. The priority can be changed with the filter
- * 'shawesome_robots_txt_priority'.
+ * 'shawesome_robots_txt_priority'. 'block' replaces everything at PHP_INT_MAX.
  */
 function shawesome_robots_txt_register_filters() {
-	$settings = shawesome_robots_txt_get_settings();
-	$mode     = shawesome_robots_txt_mode( get_current_blog_id() );
+	$mode = shawesome_robots_txt_mode( get_current_blog_id() );
+
+	if ( 'block' === $mode ) {
+		add_filter( 'robots_txt', 'shawesome_robots_txt_filter_block', PHP_INT_MAX );
+		return;
+	}
+
 	$priority = 'exact' === $mode ? PHP_INT_MAX : 10;
 	$priority = (int) apply_filters( 'shawesome_robots_txt_priority', $priority, $mode );
 

@@ -134,6 +134,7 @@ function shawesome_robots_txt_load_page() {
 				array(
 					'url'      => admin_url( 'admin-ajax.php' ),
 					'nonce'    => wp_create_nonce( 'shawesome_robots_txt_scan' ),
+					'dismiss'  => wp_create_nonce( 'shawesome_robots_txt_dismiss' ),
 					'scanning' => __( 'Checking …', 'shawesome-robots-txt' ),
 					'failed'   => __( 'The check failed.', 'shawesome-robots-txt' ),
 					'labels'   => array(
@@ -152,6 +153,8 @@ function shawesome_robots_txt_load_page() {
 						'hiddenNote' => __( 'This site is hidden from search engines, so WordPress delivers its default robots.txt instead of your rules and crawler options.', 'shawesome-robots-txt' ),
 						'fileNote'   => __( 'A physical robots.txt in the web root is delivered instead of all of this.', 'shawesome-robots-txt' ),
 						'liveNote'   => __( 'What crawlers get now. Saved changes appear here after reloading the page.', 'shawesome-robots-txt' ),
+						'block'      => __( 'Blocking mode', 'shawesome-robots-txt' ),
+						'blockNote'  => __( '"Blocking" mode: all crawlers are blocked from all paths. Your rules and crawler options are kept, but not delivered.', 'shawesome-robots-txt' ),
 						'noLimit'    => __( 'No limit', 'shawesome-robots-txt' ),
 						/* translators: %d: seconds */
 						'delay'      => __( '%d s delay', 'shawesome-robots-txt' ),
@@ -162,8 +165,6 @@ function shawesome_robots_txt_load_page() {
 					'on'         => __( 'On', 'shawesome-robots-txt' ),
 					'off'        => __( 'Off', 'shawesome-robots-txt' ),
 						'dirty'      => __( 'Unsaved changes', 'shawesome-robots-txt' ),
-						'saved'      => __( 'Saved', 'shawesome-robots-txt' ),
-						'clean'      => __( 'No changes', 'shawesome-robots-txt' ),
 					),
 				)
 			);
@@ -187,10 +188,14 @@ function shawesome_robots_txt_tabs() {
 /**
  * Label of a mode.
  *
- * @param string $mode 'base' or 'exact'.
+ * @param string $mode 'base', 'exact' or 'block'.
  * @return string
  */
 function shawesome_robots_txt_mode_label( $mode ) {
+	if ( 'block' === $mode ) {
+		return _x( 'Blocking', 'robots.txt mode', 'shawesome-robots-txt' );
+	}
+
 	return 'exact' === $mode ? _x( 'Exact', 'robots.txt mode', 'shawesome-robots-txt' ) : _x( 'Base', 'robots.txt mode', 'shawesome-robots-txt' );
 }
 
@@ -404,6 +409,24 @@ function shawesome_robots_txt_status_items( $site_id, $status ) {
 }
 
 /**
+ * Overall level of a status for filtering and sorting: 'error' if one item
+ * is bad, 'warn' if one item is a warning, otherwise 'ok'.
+ *
+ * @param int        $site_id Site ID.
+ * @param array|null $status  Status.
+ * @return string
+ */
+function shawesome_robots_txt_status_level( $site_id, $status ) {
+	$types = wp_list_pluck( shawesome_robots_txt_status_items( $site_id, $status ), 0 );
+
+	if ( in_array( 'bad', $types, true ) ) {
+		return 'error';
+	}
+
+	return in_array( 'warn', $types, true ) ? 'warn' : 'ok';
+}
+
+/**
  * HTML of a status, as lines (overview) or as badges (editor), followed by
  * the time of the check and a link to check again.
  *
@@ -440,9 +463,28 @@ function shawesome_robots_txt_ajax_scan() {
 	$site_id = shawesome_robots_txt_posted_site_id();
 	$format  = isset( $_POST['format'] ) && 'pills' === $_POST['format'] ? 'pills' : 'lines';
 
-	wp_send_json_success( array( 'html' => shawesome_robots_txt_status_html( $site_id, shawesome_robots_txt_scan( $site_id ), $format ) ) );
+	$status  = shawesome_robots_txt_scan( $site_id );
+
+	wp_send_json_success(
+		array(
+			'html'  => shawesome_robots_txt_status_html( $site_id, $status, $format ),
+			'level' => shawesome_robots_txt_status_level( $site_id, $status ),
+		)
+	);
 }
 add_action( 'wp_ajax_shawesome_robots_txt_scan', 'shawesome_robots_txt_ajax_scan' );
+
+/**
+ * AJAX: hide the notice about SEO plugins in "Base" mode for the current user.
+ */
+function shawesome_robots_txt_ajax_dismiss() {
+	check_ajax_referer( 'shawesome_robots_txt_dismiss' );
+	shawesome_robots_txt_check_cap();
+
+	update_user_meta( get_current_user_id(), 'shawesome_robots_txt_dismissed', 1 );
+	wp_send_json_success();
+}
+add_action( 'wp_ajax_shawesome_robots_txt_dismiss', 'shawesome_robots_txt_ajax_dismiss' );
 
 /**
  * Example rules for a site: the WordPress default plus its sitemap. Allow
@@ -579,7 +621,7 @@ function shawesome_robots_txt_save_site() {
 	shawesome_robots_txt_set_db_content( $site_id, $content );
 
 	$mode = isset( $_POST['site_mode'] ) ? sanitize_key( wp_unslash( $_POST['site_mode'] ) ) : '';
-	shawesome_robots_txt_set_site_option( $site_id, SHAWESOME_ROBOTS_TXT_MODE_OPTION, in_array( $mode, array( 'base', 'exact' ), true ) ? $mode : '' );
+	shawesome_robots_txt_set_site_option( $site_id, SHAWESOME_ROBOTS_TXT_MODE_OPTION, in_array( $mode, array( 'base', 'exact', 'block' ), true ) ? $mode : '' );
 
 	// Lists of keys; unknown keys are dropped by shawesome_robots_txt_site_rules().
 	$keys = function ( $name ) {
@@ -745,7 +787,7 @@ function shawesome_robots_txt_render_page() {
 	shawesome_robots_txt_render_result( $updated, $renamed );
 
 	if ( 'settings' === $tab ) {
-		shawesome_robots_txt_render_settings();
+		shawesome_robots_txt_render_settings( $updated );
 	} elseif ( 'faq' === $tab ) {
 		shawesome_robots_txt_render_faq();
 	} elseif ( $site ) {
@@ -830,17 +872,26 @@ function shawesome_robots_txt_render_warnings() {
 			'fields'  => 'ids',
 		)
 	) : array( get_current_blog_id() );
-	$any_seo = false;
+	$count = 0;
 	foreach ( $sites as $site_id ) {
 		if ( 'base' === shawesome_robots_txt_mode( (int) $site_id ) && shawesome_robots_txt_active_seo_plugins( (int) $site_id ) ) {
-			$any_seo = true;
-			break;
+			++$count;
 		}
 	}
 
-	if ( $any_seo ) {
-		shawesome_robots_txt_notice( esc_html__( 'An SEO plugin is active on a site in "Base" mode. In "Base" mode, Yoast SEO removes the WordPress default rules and appends its own rules and sitemap, and All in One SEO rebuilds the robots.txt: comments and Sitemap lines are dropped. Use "Exact" mode if the content should be delivered as is.', 'shawesome-robots-txt' ), 'warning', true );
-	}
+	// Each user can hide this notice; it then stays hidden.
+	if ( $count && ! get_user_meta( get_current_user_id(), 'shawesome_robots_txt_dismissed', true ) ) :
+		?>
+		<div class="shrt-notice">
+			<div>
+				<?php /* translators: %d: number of sites */ ?>
+				<strong><?php echo esc_html( sprintf( _n( '%d site uses "Base" mode with an SEO plugin', '%d sites use "Base" mode with an SEO plugin', $count, 'shawesome-robots-txt' ), $count ) ); ?></strong>
+				<span><?php esc_html_e( 'Yoast SEO removes the WordPress default rules and appends its own; All in One SEO rebuilds the robots.txt and drops comments and Sitemap lines. Switch to "Exact" to deliver your rules unchanged.', 'shawesome-robots-txt' ); ?></span>
+			</div>
+			<button type="button" class="shrt-notice__dismiss" data-shrt-dismiss><span aria-hidden="true">&times;</span><span class="screen-reader-text"><?php esc_html_e( 'Dismiss this notice.', 'shawesome-robots-txt' ); ?></span></button>
+		</div>
+		<?php
+	endif;
 }
 
 /**
@@ -888,74 +939,102 @@ function shawesome_robots_txt_render_physical() {
 }
 
 /**
- * Render the settings form.
+ * Render the settings: default mode as cards, behaviour as switches, and a
+ * bar to save.
+ *
+ * @param string $updated Result of the last action.
  */
-function shawesome_robots_txt_render_settings() {
+function shawesome_robots_txt_render_settings( $updated = '' ) {
 	$settings = shawesome_robots_txt_get_settings();
+	$modes    = array(
+		'base'  => array(
+			'desc'   => __( 'Your rules replace the WordPress default. SEO plugins may add their rules and sitemap.', 'shawesome-robots-txt' ),
+			'rec'    => true,
+			'points' => array(
+				array( true, __( 'Works with Yoast SEO, All in One SEO …', 'shawesome-robots-txt' ) ),
+				array( true, __( 'Duplicate Sitemap lines are removed', 'shawesome-robots-txt' ) ),
+			),
+		),
+		'exact' => array(
+			'desc'   => __( 'Your robots.txt is delivered as is. SEO plugins cannot change it.', 'shawesome-robots-txt' ),
+			'rec'    => false,
+			'points' => array(
+				array( true, __( 'Full control over the output', 'shawesome-robots-txt' ) ),
+				array( false, __( 'Sites without own rules keep the robots.txt of WordPress and the SEO plugins', 'shawesome-robots-txt' ) ),
+			),
+		),
+	);
 	?>
-	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="shrt-settings shrt-dirty">
 		<?php shawesome_robots_txt_form_fields( 'save', 'shawesome_robots_txt_save' ); ?>
-		<table class="form-table" role="presentation">
-			<tr>
-				<th scope="row"><?php esc_html_e( 'Default mode', 'shawesome-robots-txt' ); ?></th>
-				<td>
-					<p class="description"><?php echo esc_html( is_multisite() ? __( 'Applies to all sites that do not choose their own mode in their editor.', 'shawesome-robots-txt' ) : __( 'Applies unless the editor chooses another mode.', 'shawesome-robots-txt' ) ); ?></p>
-					<fieldset>
-						<label>
-							<input type="radio" name="mode" value="base" <?php checked( $settings['mode'], 'base' ); ?>>
-							<?php
-							printf(
-								/* translators: %s: name of the mode "Base" */
-								esc_html__( '%s – the content replaces the WordPress default. SEO plugins may add their rules and sitemap; duplicate Sitemap lines are removed.', 'shawesome-robots-txt' ),
-								'<strong>' . esc_html_x( 'Base', 'robots.txt mode', 'shawesome-robots-txt' ) . '</strong>'
-							);
-							?>
-						</label><br>
-						<label>
-							<input type="radio" name="mode" value="exact" <?php checked( $settings['mode'], 'exact' ); ?>>
-							<?php
-							printf(
-								/* translators: %s: name of the mode "Exact" */
-								esc_html__( '%s – a custom robots.txt is delivered as is. SEO plugins (Yoast SEO, All in One SEO …) cannot change it. Sites without a custom robots.txt keep the one from WordPress and the SEO plugins.', 'shawesome-robots-txt' ),
-								'<strong>' . esc_html_x( 'Exact', 'robots.txt mode', 'shawesome-robots-txt' ) . '</strong>'
-							);
-							?>
-						</label>
-					</fieldset>
-				</td>
-			</tr>
-			<tr>
-				<th scope="row"><?php esc_html_e( 'Search engine visibility', 'shawesome-robots-txt' ); ?></th>
-				<td>
-					<label>
-						<input type="checkbox" name="respect_public" value="1" <?php checked( $settings['respect_public'] ); ?>>
-						<?php esc_html_e( 'Ignore the custom robots.txt on sites set to "Discourage search engines from indexing this site" (WordPress delivers its default robots.txt).', 'shawesome-robots-txt' ); ?>
+
+		<section class="shrt-card">
+			<header class="shrt-card__head">
+				<div class="shrt-card__title">
+					<h2><?php esc_html_e( 'Default mode', 'shawesome-robots-txt' ); ?></h2>
+					<span><?php echo esc_html( is_multisite() ? __( 'Used by every site that does not set its own mode in the editor. "Blocking" can only be set per site.', 'shawesome-robots-txt' ) : __( 'Used unless the editor sets another mode.', 'shawesome-robots-txt' ) ); ?></span>
+				</div>
+			</header>
+			<fieldset class="shrt-modes shrt-modes--wide">
+				<legend class="screen-reader-text"><?php esc_html_e( 'Default mode', 'shawesome-robots-txt' ); ?></legend>
+				<?php foreach ( $modes as $value => $mode ) : ?>
+					<label class="shrt-mode">
+						<span class="shrt-mode__title">
+							<input type="radio" name="mode" value="<?php echo esc_attr( $value ); ?>" <?php checked( $settings['mode'], $value ); ?>>
+							<?php echo esc_html( shawesome_robots_txt_mode_label( $value ) ); ?>
+							<?php if ( $mode['rec'] ) : ?>
+								<span class="shrt-tag"><?php esc_html_e( 'recommended', 'shawesome-robots-txt' ); ?></span>
+							<?php endif; ?>
+						</span>
+						<span class="shrt-mode__desc"><?php echo esc_html( $mode['desc'] ); ?></span>
+						<span class="shrt-points">
+							<?php foreach ( $mode['points'] as $point ) : ?>
+								<span class="<?php echo esc_attr( $point[0] ? 'is-yes' : 'is-no' ); ?>"><?php echo esc_html( $point[1] ); ?></span>
+							<?php endforeach; ?>
+						</span>
 					</label>
-				</td>
-			</tr>
+				<?php endforeach; ?>
+			</fieldset>
+		</section>
+
+		<section class="shrt-card">
+			<header class="shrt-card__head">
+				<div class="shrt-card__title"><h2><?php esc_html_e( 'Behaviour', 'shawesome-robots-txt' ); ?></h2></div>
+			</header>
+			<div class="shrt-row">
+				<div>
+					<label for="shrt-respect-public" class="shrt-row__title"><?php esc_html_e( 'Respect "Discourage search engines"', 'shawesome-robots-txt' ); ?></label>
+					<p><?php esc_html_e( 'On sites with this WordPress setting enabled, your custom rules are ignored and WordPress delivers its default robots.txt.', 'shawesome-robots-txt' ); ?></p>
+				</div>
+				<input type="checkbox" role="switch" class="shrt-switch-toggle" id="shrt-respect-public" name="respect_public" value="1" <?php checked( $settings['respect_public'] ); ?>>
+			</div>
 			<?php if ( is_multisite() && ! is_subdomain_install() ) : ?>
-				<tr>
-					<th scope="row"><?php esc_html_e( 'Sites with a path', 'shawesome-robots-txt' ); ?></th>
-					<td>
-						<input type="hidden" name="path_sites_shown" value="1">
-						<label>
-							<input type="checkbox" name="path_sites" value="1" <?php checked( $settings['path_sites'] ); ?>>
-							<?php esc_html_e( 'Add rules for sites whose address contains a path (example.com/blog/) to the robots.txt of their host, also in "Exact" mode: Disallow for sites hidden from search engines, Sitemap for public sites.', 'shawesome-robots-txt' ); ?>
-						</label>
-						<p class="description"><?php esc_html_e( 'The Disallow lines are added as a group for all crawlers. Crawlers that have a group of their own in the robots.txt do not read it.', 'shawesome-robots-txt' ); ?></p>
-					</td>
-				</tr>
+				<div class="shrt-row">
+					<div>
+						<label for="shrt-path-sites" class="shrt-row__title"><?php esc_html_e( 'Rules for sites with a path', 'shawesome-robots-txt' ); ?></label>
+						<p><?php esc_html_e( 'Adds rules for sites whose address contains a path (example.com/blog/) to the robots.txt of their host, also in "Exact" mode: Disallow for sites hidden from search engines, Sitemap for public sites. The Disallow lines form a group for all crawlers, which crawlers with a group of their own do not read.', 'shawesome-robots-txt' ); ?></p>
+					</div>
+					<input type="hidden" name="path_sites_shown" value="1">
+					<input type="checkbox" role="switch" class="shrt-switch-toggle" id="shrt-path-sites" name="path_sites" value="1" <?php checked( $settings['path_sites'] ); ?>>
+				</div>
 			<?php endif; ?>
-			<tr>
-				<th scope="row"><label for="shawesome-robots-txt-status-hours"><?php esc_html_e( 'Keep status for', 'shawesome-robots-txt' ); ?></label></th>
-				<td>
-					<input type="number" id="shawesome-robots-txt-status-hours" name="status_hours" min="1" max="720" step="1" class="small-text" value="<?php echo esc_attr( $settings['status_hours'] ); ?>">
+			<div class="shrt-row">
+				<div>
+					<label for="shrt-status-hours" class="shrt-row__title"><?php esc_html_e( 'Re-check status after', 'shawesome-robots-txt' ); ?></label>
+					<p><?php esc_html_e( 'Sitemaps, blocked crawlers and AI training are checked again when the overview is opened after this time. "Check again" works at any time.', 'shawesome-robots-txt' ); ?></p>
+				</div>
+				<span class="shrt-row__control">
+					<input type="number" id="shrt-status-hours" name="status_hours" min="1" max="720" step="1" class="small-text" value="<?php echo esc_attr( $settings['status_hours'] ); ?>">
 					<?php esc_html_e( 'hours', 'shawesome-robots-txt' ); ?>
-					<p class="description"><?php esc_html_e( 'The status of a robots.txt (blocked crawlers, sitemaps, AI training) is checked again when the overview is opened after this time. It can be checked at any time with "Check again".', 'shawesome-robots-txt' ); ?></p>
-				</td>
-			</tr>
-		</table>
-		<?php submit_button( __( 'Save settings', 'shawesome-robots-txt' ) ); ?>
+				</span>
+			</div>
+		</section>
+
+		<div class="shrt-bar">
+			<span class="shrt-bar__state"><?php echo esc_html( 'settings' === $updated ? __( 'Saved', 'shawesome-robots-txt' ) : __( 'No changes', 'shawesome-robots-txt' ) ); ?></span>
+			<button type="button" class="button-link shrt-bar__discard" hidden><?php esc_html_e( 'Discard', 'shawesome-robots-txt' ); ?></button>
+			<?php submit_button( __( 'Save settings', 'shawesome-robots-txt' ), 'primary', 'submit', false ); ?>
+		</div>
 	</form>
 	<?php
 }
@@ -1023,6 +1102,7 @@ function shawesome_robots_txt_render_editor( $site_id, $updated = '' ) {
 		),
 		'base'  => array( shawesome_robots_txt_mode_label( 'base' ), __( 'Your rules replace the WordPress default; SEO plugins may still change them.', 'shawesome-robots-txt' ) ),
 		'exact' => array( shawesome_robots_txt_mode_label( 'exact' ), __( 'Delivered exactly as written. SEO plugins cannot change it.', 'shawesome-robots-txt' ) ),
+		'block' => array( shawesome_robots_txt_mode_label( 'block' ), __( 'Blocks all crawlers from all paths. Your rules and crawler options are kept, but not delivered. Not for live sites.', 'shawesome-robots-txt' ) ),
 	);
 	$resources = array(
 		'css_js' => array( __( 'CSS and JavaScript', 'shawesome-robots-txt' ), __( 'Google needs these to render your pages and to check whether they work on mobile devices.', 'shawesome-robots-txt' ), true ),
@@ -1052,7 +1132,7 @@ function shawesome_robots_txt_render_editor( $site_id, $updated = '' ) {
 		'saved'       => 'site' === $updated,
 	);
 	?>
-	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="shrt-editor" data-shrt="<?php echo esc_attr( wp_json_encode( $data ) ); ?>">
+	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="shrt-editor shrt-dirty" data-shrt="<?php echo esc_attr( wp_json_encode( $data ) ); ?>">
 		<?php shawesome_robots_txt_form_fields( 'save_site', 'shawesome_robots_txt_save_site_' . $site_id ); ?>
 		<input type="hidden" name="site_id" value="<?php echo esc_attr( $site_id ); ?>">
 
@@ -1083,7 +1163,7 @@ function shawesome_robots_txt_render_editor( $site_id, $updated = '' ) {
 					<fieldset class="shrt-modes">
 						<legend class="screen-reader-text"><?php esc_html_e( 'Mode', 'shawesome-robots-txt' ); ?></legend>
 						<?php foreach ( $modes as $value => $texts ) : ?>
-							<label class="shrt-mode">
+							<label class="shrt-mode<?php echo 'block' === $value ? ' shrt-mode--block' : ''; ?>">
 								<span class="shrt-mode__title"><input type="radio" name="site_mode" value="<?php echo esc_attr( $value ); ?>" <?php checked( $site_mode, $value ); ?>> <?php echo esc_html( $texts[0] ); ?></span>
 								<span class="shrt-mode__desc"><?php echo esc_html( $texts[1] ); ?></span>
 							</label>
@@ -1375,122 +1455,185 @@ function shawesome_robots_txt_render_served_by( $site_id ) {
 }
 
 /**
- * Render the overview of all sites of the network.
+ * Render the overview of all sites of the network: filters by status, a
+ * search, and a table sorted by status (errors first).
  */
 function shawesome_robots_txt_render_sites() {
 	$settings  = shawesome_robots_txt_get_settings();
 	$check_all = isset( $_GET['check'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only triggers the check in the browser.
-	$sites    = get_sites(
+	$rows      = array();
+	$counts    = array(
+		'all'   => 0,
+		'error' => 0,
+		'warn'  => 0,
+		'ok'    => 0,
+	);
+
+	foreach ( get_sites(
 		array(
 			'number'  => 0,
 			'deleted' => 0,
 		)
+	) as $site ) {
+		$site_id = (int) $site->blog_id;
+		$own     = shawesome_robots_txt_serves_own( $site_id );
+		$status  = $own ? shawesome_robots_txt_get_status( $site_id ) : null;
+		$level   = $own ? shawesome_robots_txt_status_level( $site_id, $status ) : 'ok';
+		$rows[]  = array(
+			'id'     => $site_id,
+			'own'    => $own,
+			'status' => $status,
+			'level'  => $level,
+			'host'   => shawesome_robots_txt_host( $site_id ),
+			'label'  => untrailingslashit( shawesome_robots_txt_host( $site_id ) . wp_parse_url( get_home_url( $site_id ), PHP_URL_PATH ) ),
+			'public' => '1' === (string) $site->public,
+		);
+		++$counts['all'];
+		++$counts[ $level ];
+	}
+
+	// Errors first, then warnings, then the rest; the order of the network otherwise.
+	$order = array(
+		'error' => 0,
+		'warn'  => 1,
+		'ok'    => 2,
+	);
+	uasort(
+		$rows,
+		function ( $a, $b ) use ( $order ) {
+			return $order[ $a['level'] ] - $order[ $b['level'] ];
+		}
+	);
+
+	$filters = array(
+		'all'   => __( 'All', 'shawesome-robots-txt' ),
+		'error' => __( 'Errors', 'shawesome-robots-txt' ),
+		'warn'  => __( 'Warnings', 'shawesome-robots-txt' ),
+		'ok'    => __( 'OK', 'shawesome-robots-txt' ),
 	);
 	?>
-	<h2><?php esc_html_e( 'Sites', 'shawesome-robots-txt' ); ?></h2>
-	<p>
-		<?php
-		printf(
-			/* translators: %s: directory path */
-			esc_html__( 'Edit the robots.txt of a site here. Optionally, a file in %s overrides the database content, e.g. for deployments. The hyphenated file name takes precedence; the name with dots is an unambiguous alternative.', 'shawesome-robots-txt' ),
-			'<code>' . esc_html( shawesome_robots_txt_dir() ) . '</code>'
-		);
-		?>
-	</p>
-	<p class="shrt-toolbar"><button type="button" class="button" data-shrt-scan="all"><?php esc_html_e( 'Check all sites again', 'shawesome-robots-txt' ); ?></button></p>
-	<table class="widefat striped">
-		<thead>
-			<tr>
-				<th><?php esc_html_e( 'Site', 'shawesome-robots-txt' ); ?></th>
-				<th><?php esc_html_e( 'Mode', 'shawesome-robots-txt' ); ?></th>
-				<th><?php echo esc_html_x( 'Source', 'where the robots.txt comes from', 'shawesome-robots-txt' ); ?></th>
-				<th><?php esc_html_e( 'Override file name', 'shawesome-robots-txt' ); ?></th>
-				<th><?php esc_html_e( 'SEO plugins', 'shawesome-robots-txt' ); ?></th>
-				<th><?php esc_html_e( 'Status', 'shawesome-robots-txt' ); ?></th>
-			</tr>
-		</thead>
-		<tbody>
-			<?php foreach ( $sites as $site ) : ?>
+	<div class="shrt-toolbar">
+		<h2><?php esc_html_e( 'Sites', 'shawesome-robots-txt' ); ?></h2>
+		<div class="shrt-chips" role="group" aria-label="<?php esc_attr_e( 'Filter sites by status', 'shawesome-robots-txt' ); ?>">
+			<?php foreach ( $filters as $key => $label ) : ?>
+				<button type="button" class="shrt-chip" data-shrt-filter="<?php echo esc_attr( $key ); ?>" aria-pressed="<?php echo 'all' === $key ? 'true' : 'false'; ?>"><?php echo esc_html( $label ); ?> <span data-shrt-count="<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $counts[ $key ] ); ?></span></button>
+			<?php endforeach; ?>
+		</div>
+		<span class="shrt-toolbar__space"></span>
+		<label class="screen-reader-text" for="shrt-search"><?php esc_html_e( 'Search sites', 'shawesome-robots-txt' ); ?></label>
+		<input type="search" id="shrt-search" class="shrt-search" placeholder="<?php esc_attr_e( 'Search sites …', 'shawesome-robots-txt' ); ?>">
+		<button type="button" class="button" data-shrt-scan="all"><?php esc_html_e( 'Check all sites', 'shawesome-robots-txt' ); ?></button>
+	</div>
+
+	<div class="shrt-table-wrap">
+		<table class="shrt-sites">
+			<thead>
+				<tr>
+					<th scope="col"><?php esc_html_e( 'Site', 'shawesome-robots-txt' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Mode', 'shawesome-robots-txt' ); ?></th>
+					<th scope="col"><?php echo esc_html_x( 'Source', 'where the robots.txt comes from', 'shawesome-robots-txt' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'SEO plugin', 'shawesome-robots-txt' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Status', 'shawesome-robots-txt' ); ?></th>
+				</tr>
+			</thead>
+			<?php foreach ( $rows as $row ) : ?>
 				<?php
-				$site_id  = (int) $site->blog_id;
-				$host     = shawesome_robots_txt_host( $site_id );
-				$own      = shawesome_robots_txt_serves_own( $site_id );
+				$site_id  = $row['id'];
 				$seo      = shawesome_robots_txt_active_seo_plugins( $site_id );
 				$edit_url = shawesome_robots_txt_page_url( array( 'site' => $site_id ) );
-				$label    = untrailingslashit( $host . wp_parse_url( get_home_url( $site_id ), PHP_URL_PATH ) );
+				$files    = array_map( 'basename', shawesome_robots_txt_candidate_files( $row['host'] ) );
 				?>
-				<tr>
-					<td>
-						<?php if ( $own ) : ?>
-							<strong><a href="<?php echo esc_url( $edit_url ); ?>"><?php echo esc_html( $label ); ?></a></strong>
-							<div class="row-actions visible">
-								<a href="<?php echo esc_url( $edit_url ); ?>"><?php echo esc_html_x( 'Edit', 'edit the robots.txt of a site', 'shawesome-robots-txt' ); ?></a> |
-								<a href="<?php echo esc_url( get_home_url( $site_id, 'robots.txt' ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Open robots.txt', 'shawesome-robots-txt' ); ?></a>
-							</div>
-						<?php else : ?>
-							<strong><?php echo esc_html( $label ); ?></strong>
-						<?php endif; ?>
-					</td>
-					<td>
-						<?php
-						if ( ! $own ) {
-							echo '–';
-						} elseif ( '' === shawesome_robots_txt_site_mode( $site_id ) ) {
-							/* translators: %s: name of the default mode */
-							echo esc_html( sprintf( __( '%s (default)', 'shawesome-robots-txt' ), shawesome_robots_txt_mode_label( $settings['mode'] ) ) );
-						} else {
-							echo esc_html( shawesome_robots_txt_mode_label( shawesome_robots_txt_site_mode( $site_id ) ) );
-						}
-						?>
-					</td>
-					<td>
-						<?php
-						if ( ! $own ) {
-							/* translators: %s: host name */
-							echo esc_html( sprintf( __( 'Served by the robots.txt of %s', 'shawesome-robots-txt' ), $host ) );
-							if ( $settings['path_sites'] ) {
-								echo '<br>' . esc_html( '1' === (string) $site->public ? __( 'Sitemap line added', 'shawesome-robots-txt' ) : __( 'Disallow line added', 'shawesome-robots-txt' ) );
-							}
-						} else {
-							$resolved = shawesome_robots_txt_resolve( $site_id );
-							if ( null === $resolved['source'] && $seo ) {
-								/* translators: %s: names of the active SEO plugins */
-								echo esc_html( sprintf( __( 'Not set – generated by WordPress and %s', 'shawesome-robots-txt' ), wp_sprintf( '%l', $seo ) ) );
-							} elseif ( null === $resolved['source'] ) {
-								esc_html_e( 'Not set – generated by WordPress', 'shawesome-robots-txt' );
-							} elseif ( $settings['respect_public'] && ! shawesome_robots_txt_is_public( $site_id ) ) {
-								esc_html_e( 'Ignored – site hidden from search engines', 'shawesome-robots-txt' );
-							} elseif ( 'file' === $resolved['source'] ) {
-								/* translators: %s: file name */
-								printf( '<span style="color:#008a20;">&#10003;</span> ' . esc_html__( 'File: %s', 'shawesome-robots-txt' ), '<code>' . esc_html( basename( $resolved['file'] ) ) . '</code>' );
-							} else {
-								echo '<span style="color:#008a20;">&#10003;</span> ' . esc_html_x( 'Database', 'where the robots.txt comes from', 'shawesome-robots-txt' );
-							}
-						}
-						?>
-					</td>
-					<td>
-						<?php
-						if ( $own ) {
-							echo implode( '<br>', array_map( 'shawesome_robots_txt_code', array_map( 'basename', shawesome_robots_txt_candidate_files( $host ) ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in shawesome_robots_txt_code().
-						} else {
-							echo '–';
-						}
-						?>
-					</td>
-					<td><?php echo $seo ? esc_html( implode( ', ', $seo ) ) : '–'; ?></td>
-					<?php if ( $own ) : ?>
-						<?php $status = shawesome_robots_txt_get_status( $site_id ); ?>
-						<td data-shrt-status="<?php echo esc_attr( $site_id ); ?>"<?php echo $check_all || shawesome_robots_txt_status_outdated( $status ) ? ' data-outdated' : ''; ?>>
-							<?php echo shawesome_robots_txt_status_html( $site_id, $status ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in shawesome_robots_txt_status_html(). ?>
+				<tbody class="shrt-site is-<?php echo esc_attr( $row['level'] ); ?>" data-level="<?php echo esc_attr( $row['level'] ); ?>" data-search="<?php echo esc_attr( $row['label'] ); ?>">
+					<tr>
+						<td>
+							<?php if ( $row['own'] ) : ?>
+								<a class="shrt-site__name" href="<?php echo esc_url( $edit_url ); ?>"><?php echo esc_html( $row['label'] ); ?></a>
+								<span class="shrt-site__actions">
+									<a href="<?php echo esc_url( $edit_url ); ?>"><?php esc_html_e( 'Edit rules', 'shawesome-robots-txt' ); ?></a>
+									<a href="<?php echo esc_url( get_home_url( $site_id, 'robots.txt' ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'View', 'shawesome-robots-txt' ); ?> <span aria-hidden="true">&#8599;</span><span class="screen-reader-text"><?php esc_html_e( '(opens in a new tab)', 'shawesome-robots-txt' ); ?></span></a>
+									<button type="button" class="button-link" aria-expanded="false" aria-controls="shrt-file-<?php echo esc_attr( $site_id ); ?>"><?php esc_html_e( 'File override', 'shawesome-robots-txt' ); ?></button>
+								</span>
+							<?php else : ?>
+								<span class="shrt-site__name"><?php echo esc_html( $row['label'] ); ?></span>
+							<?php endif; ?>
 						</td>
-					<?php else : ?>
-						<td>–</td>
+						<td>
+							<?php
+							if ( ! $row['own'] ) {
+								echo '–';
+							} else {
+								$mode = shawesome_robots_txt_site_mode( $site_id );
+								/* translators: %s: name of the default mode */
+								$text = '' === $mode ? sprintf( __( '%s (default)', 'shawesome-robots-txt' ), shawesome_robots_txt_mode_label( $settings['mode'] ) ) : shawesome_robots_txt_mode_label( $mode );
+								echo '<span class="shrt-mode-badge' . ( 'block' === $mode ? ' is-block' : '' ) . '">' . esc_html( $text ) . '</span>';
+							}
+							?>
+						</td>
+						<td>
+							<?php
+							if ( ! $row['own'] ) {
+								esc_html_e( 'Served by its host', 'shawesome-robots-txt' );
+								/* translators: %s: host name */
+								echo '<span class="shrt-sub">' . esc_html( sprintf( __( 'robots.txt of %s', 'shawesome-robots-txt' ), $row['host'] ) ) . '</span>';
+								if ( $settings['path_sites'] ) {
+									echo '<span class="shrt-sub">' . esc_html( $row['public'] ? __( 'Sitemap line added', 'shawesome-robots-txt' ) : __( 'Disallow line added', 'shawesome-robots-txt' ) ) . '</span>';
+								}
+							} else {
+								$resolved = shawesome_robots_txt_resolve( $site_id );
+								if ( 'file' === $resolved['source'] ) {
+									echo esc_html_x( 'File', 'where the robots.txt comes from', 'shawesome-robots-txt' );
+									echo '<span class="shrt-sub">' . esc_html( basename( $resolved['file'] ) ) . '</span>';
+								} elseif ( 'db' === $resolved['source'] ) {
+									echo esc_html_x( 'Database', 'where the robots.txt comes from', 'shawesome-robots-txt' );
+								} else {
+									echo esc_html_x( 'Generated', 'where the robots.txt comes from', 'shawesome-robots-txt' );
+									/* translators: %s: names of the active SEO plugins */
+									echo '<span class="shrt-sub">' . esc_html( $seo ? sprintf( __( 'WordPress + %s', 'shawesome-robots-txt' ), wp_sprintf( '%l', $seo ) ) : __( 'WordPress', 'shawesome-robots-txt' ) ) . '</span>';
+								}
+								if ( $settings['respect_public'] && ! shawesome_robots_txt_is_public( $site_id ) && null !== $resolved['source'] ) {
+									echo '<span class="shrt-sub">' . esc_html__( 'Ignored – site hidden from search engines', 'shawesome-robots-txt' ) . '</span>';
+								}
+							}
+							?>
+						</td>
+						<td><?php echo $seo ? esc_html( implode( ', ', $seo ) ) : '–'; ?></td>
+						<?php if ( $row['own'] ) : ?>
+							<td class="shrt-status" data-shrt-status="<?php echo esc_attr( $site_id ); ?>"<?php echo $check_all || shawesome_robots_txt_status_outdated( $row['status'] ) ? ' data-outdated' : ''; ?>>
+								<?php echo shawesome_robots_txt_status_html( $site_id, $row['status'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in shawesome_robots_txt_status_html(). ?>
+							</td>
+						<?php else : ?>
+							<td>–</td>
+						<?php endif; ?>
+					</tr>
+					<?php if ( $row['own'] ) : ?>
+						<tr class="shrt-file" id="shrt-file-<?php echo esc_attr( $site_id ); ?>" hidden>
+							<td colspan="5">
+								<strong><?php esc_html_e( 'File override', 'shawesome-robots-txt' ); ?></strong>
+								<span class="shrt-sub-inline"><?php esc_html_e( '– a file here replaces the database content, e.g. for deployments', 'shawesome-robots-txt' ); ?></span>
+								<div class="shrt-file__paths">
+									<code>&hellip;/<?php echo esc_html( basename( untrailingslashit( shawesome_robots_txt_dir() ) ) ); ?>/<strong><?php echo esc_html( $files[0] ); ?></strong></code>
+									<?php if ( isset( $files[1] ) ) : ?>
+										<span><?php esc_html_e( 'or', 'shawesome-robots-txt' ); ?></span>
+										<code><?php echo esc_html( $files[1] ); ?></code>
+									<?php endif; ?>
+									<span>
+										<?php
+										$found = shawesome_robots_txt_find_file( $row['host'] );
+										/* translators: %s: file name */
+										echo esc_html( '– ' . __( 'hyphenated name wins', 'shawesome-robots-txt' ) . ' · ' . ( $found ? sprintf( __( 'file found: %s', 'shawesome-robots-txt' ), basename( $found ) ) : __( 'no file found', 'shawesome-robots-txt' ) ) );
+										?>
+									</span>
+								</div>
+							</td>
+						</tr>
 					<?php endif; ?>
-				</tr>
+				</tbody>
 			<?php endforeach; ?>
-		</tbody>
-	</table>
+			<tbody class="shrt-empty" hidden><tr><td colspan="5"><?php esc_html_e( 'No sites match.', 'shawesome-robots-txt' ); ?></td></tr></tbody>
+		</table>
+	</div>
+	<?php /* translators: %s: name of the directory for override files */ ?>
+	<p class="shrt-footnote"><?php echo wp_kses( sprintf( __( 'Override files live in %s. Use "File override" in a row for the exact file name.', 'shawesome-robots-txt' ), '<code>' . esc_html( str_replace( ABSPATH, '', shawesome_robots_txt_dir() ) ) . '</code>' ), array( 'code' => array() ) ); ?></p>
 	<?php
 }
 
@@ -1529,9 +1672,9 @@ function shawesome_robots_txt_render_faq() {
 			'items' => array(
 				array(
 					'id'   => 'modes',
-					'q'    => __( 'What is the difference between "Base" and "Exact"?', 'shawesome-robots-txt' ),
-					'a'    => __( 'In "Base" mode, your rules replace the WordPress default and SEO plugins may still change them: Yoast SEO removes the WordPress default rules and appends its own rules and sitemap, All in One SEO rebuilds the robots.txt. In "Exact" mode, your rules are delivered as written, after all SEO plugins have run. The crawler options and the rules for sites with a path are added in both modes.', 'shawesome-robots-txt' ),
-					'code' => __( "Base:  your rules, then SEO plugins may change them\nExact: your rules as written, SEO plugins cannot change them", 'shawesome-robots-txt' ),
+					'q'    => __( 'What is the difference between "Base", "Exact" and "Blocking"?', 'shawesome-robots-txt' ),
+					'a'    => __( 'In "Base" mode, your rules replace the WordPress default and SEO plugins may still change them: Yoast SEO removes the WordPress default rules and appends its own rules and sitemap, All in One SEO rebuilds the robots.txt. In "Exact" mode, your rules are delivered as written, after all SEO plugins have run. The crawler options and the rules for sites with a path are added in both modes. "Blocking" mode, which can only be set per site, blocks all crawlers from all paths – for example for a staging site.', 'shawesome-robots-txt' ),
+					'code' => __( "Base:     your rules, then SEO plugins may change them\nExact:    your rules as written, SEO plugins cannot change them\nBlocking: User-agent: * / Disallow: / for all crawlers", 'shawesome-robots-txt' ),
 				),
 				array(
 					'id'     => 'status',

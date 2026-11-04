@@ -15,6 +15,9 @@ $shawesome_robots_txt_options = array( 'shawesome_robots_txt_content', 'shawesom
 
 delete_site_option( 'shawesome_robots_txt_settings' );
 
+// Dismissed notice, stored per user.
+delete_metadata( 'user', 0, 'shawesome_robots_txt_dismissed', '', true );
+
 // The site functions only exist in a network.
 if ( ! is_multisite() ) {
 	foreach ( $shawesome_robots_txt_options as $shawesome_robots_txt_option ) {

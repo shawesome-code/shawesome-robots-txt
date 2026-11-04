@@ -33,6 +33,7 @@ The domain with dots (`www.example.com.txt`) is accepted as an unambiguous alter
 Both plugins change the robots.txt output: Yoast SEO removes the WordPress default rules (`User-agent: *`, `Disallow: /wp-admin/`, `Allow: /wp-admin/admin-ajax.php` in exactly this order) and appends its own rules and sitemap, All in One SEO rebuilds the rules and drops comments and Sitemap lines. In the settings you choose the mode:
 
 - **Base** (default) – the content replaces the WordPress default, SEO plugins may add to it; duplicate Sitemap lines are removed
+- **Blocking** (per site only) – all crawlers are blocked from all paths, e.g. for a staging site
 - **Exact** – the content is delivered as is, after all SEO plugins have run; sites without a custom robots.txt (no content in the editor and no file) keep the one from WordPress and the SEO plugins
 
 The default mode is set in the settings; each site can choose its own in its editor. In a network, the robots.txt tab lists all sites with their mode, the source of their robots.txt, the override file name, detected SEO plugins and a status (all crawlers blocked, sitemaps linked, AI training blocked, delivery problems), which is checked from the live robots.txt and kept for a configurable time.

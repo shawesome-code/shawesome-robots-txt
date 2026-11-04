@@ -1,13 +1,19 @@
 /**
  * shawesome robots.txt – script of the plugin page.
  *
- * - Buttons that insert example rules into the editor.
+ * - Example rules button in the editor.
  * - Status: check sites with an outdated status, and on request.
+ * - Overview: filter by status, search, file override rows, notice.
  * - FAQ: open the question named in the URL hash.
- * - Editor: preview after save, live view, summaries and unsaved changes.
+ * - Forms with a save bar: unsaved changes, discard, leave warning.
+ * - Editor: preview after save, live view and summaries of the options.
  */
 ( function ( c ) {
 	'use strict';
+
+	var all = function ( selector, root ) {
+		return [].slice.call( ( root || document ).querySelectorAll( selector ) );
+	};
 
 	// Example rules: data-shrt-insert="replace" asks before replacing, "append" adds at the end.
 	document.addEventListener( 'click', function ( e ) {
@@ -31,6 +37,62 @@
 		field.focus();
 	} );
 
+	// Overview: counts and visibility of the rows.
+	var filter = 'all',
+		search = document.getElementById( 'shrt-search' );
+
+	function applyFilter() {
+		var query = search ? search.value.trim().toLowerCase() : '',
+			shown = 0,
+			counts = { all: 0, error: 0, warn: 0, ok: 0 };
+
+		all( '.shrt-site' ).forEach( function ( row ) {
+			var level = row.getAttribute( 'data-level' ),
+				match = ( 'all' === filter || level === filter ) && -1 !== row.getAttribute( 'data-search' ).toLowerCase().indexOf( query );
+			counts.all++;
+			counts[ level ]++;
+			row.hidden = ! match;
+			shown += match ? 1 : 0;
+		} );
+		all( '[data-shrt-count]' ).forEach( function ( count ) {
+			count.textContent = counts[ count.getAttribute( 'data-shrt-count' ) ];
+		} );
+		all( '.shrt-empty' ).forEach( function ( empty ) {
+			empty.hidden = shown > 0;
+		} );
+	}
+
+	document.addEventListener( 'click', function ( e ) {
+		var chip = e.target.closest( '[data-shrt-filter]' ),
+			toggle = e.target.closest( '.shrt-site__actions [aria-controls]' ),
+			dismiss = e.target.closest( '[data-shrt-dismiss]' );
+
+		if ( chip ) {
+			filter = chip.getAttribute( 'data-shrt-filter' );
+			all( '[data-shrt-filter]' ).forEach( function ( other ) {
+				other.setAttribute( 'aria-pressed', other === chip ? 'true' : 'false' );
+			} );
+			applyFilter();
+		}
+		if ( toggle ) {
+			var target = document.getElementById( toggle.getAttribute( 'aria-controls' ) ),
+				open = 'true' !== toggle.getAttribute( 'aria-expanded' );
+			toggle.setAttribute( 'aria-expanded', open ? 'true' : 'false' );
+			target.hidden = ! open;
+		}
+		if ( dismiss ) {
+			var body = new FormData();
+			body.append( 'action', 'shawesome_robots_txt_dismiss' );
+			body.append( '_ajax_nonce', c.dismiss );
+			fetch( c.url, { method: 'POST', body: body, credentials: 'same-origin' } );
+			dismiss.closest( '.shrt-notice' ).remove();
+		}
+	} );
+
+	if ( search ) {
+		search.addEventListener( 'input', applyFilter );
+	}
+
 	// Status: three requests at a time.
 	function scan( element ) {
 		var body = new FormData();
@@ -39,20 +101,29 @@
 		body.append( 'site_id', element.getAttribute( 'data-shrt-status' ) );
 		body.append( 'format', element.getAttribute( 'data-format' ) || 'lines' );
 		element.textContent = c.scanning;
+		element.setAttribute( 'aria-busy', 'true' );
 
 		return fetch( c.url, { method: 'POST', body: body, credentials: 'same-origin' } )
 			.then( function ( response ) {
 				return response.json();
 			} )
 			.then( function ( json ) {
-				if ( json && json.success ) {
-					element.innerHTML = json.data.html; // Escaped on the server.
-				} else {
-					element.textContent = c.failed;
+				if ( ! json || ! json.success ) {
+					throw new Error();
+				}
+				element.innerHTML = json.data.html; // Escaped on the server.
+				var row = element.closest( '.shrt-site' );
+				if ( row ) {
+					row.className = 'shrt-site is-' + json.data.level;
+					row.setAttribute( 'data-level', json.data.level );
+					applyFilter();
 				}
 			} )
 			.catch( function () {
 				element.textContent = c.failed;
+			} )
+			.then( function () {
+				element.removeAttribute( 'aria-busy' );
 			} );
 	}
 
@@ -70,22 +141,73 @@
 			return;
 		}
 		e.preventDefault();
-		run( 'all' === link.getAttribute( 'data-shrt-scan' )
-			? [].slice.call( document.querySelectorAll( '[data-shrt-status]' ) )
-			: [ link.closest( '[data-shrt-status]' ) ] );
+		run( 'all' === link.getAttribute( 'data-shrt-scan' ) ? all( '[data-shrt-status]' ) : [ link.closest( '[data-shrt-status]' ) ] );
 	} );
 
-	run( [].slice.call( document.querySelectorAll( '[data-shrt-status][data-outdated]' ) ) );
+	run( all( '[data-shrt-status][data-outdated]' ) );
 
 	// FAQ: open the question named in the hash, e.g. #faq-not-delivered.
-	var target = window.location.hash ? document.getElementById( window.location.hash.slice( 1 ) ) : null;
-	if ( target && 'DETAILS' === target.tagName ) {
-		target.open = true;
-		window.scrollTo( 0, target.getBoundingClientRect().top + window.pageYOffset - 48 );
+	var question = window.location.hash ? document.getElementById( window.location.hash.slice( 1 ) ) : null;
+	if ( question && 'DETAILS' === question.tagName ) {
+		question.open = true;
+		window.scrollTo( 0, question.getBoundingClientRect().top + window.pageYOffset - 48 );
 	}
+
+	// Forms with a save bar: unsaved changes, discard and a warning before leaving.
+	all( 'form.shrt-dirty' ).forEach( function ( form ) {
+		var state = form.querySelector( '.shrt-bar__state' ),
+			discard = form.querySelector( '.shrt-bar__discard' ),
+			saved = state.textContent,
+			initial = null,
+			dirty = false,
+			submitting = false;
+
+		function snapshot() {
+			return new URLSearchParams( new FormData( form ) ).toString();
+		}
+
+		function update() {
+			form.dispatchEvent( new CustomEvent( 'shrt:change' ) );
+			if ( null === initial ) {
+				return;
+			}
+			dirty = snapshot() !== initial;
+			state.textContent = dirty ? c.labels.dirty : saved;
+			state.classList.toggle( 'is-dirty', dirty );
+			discard.hidden = ! dirty;
+		}
+
+		form.addEventListener( 'input', update );
+		form.addEventListener( 'change', update );
+		form.addEventListener( 'submit', function () {
+			submitting = true;
+		} );
+		discard.addEventListener( 'click', function () {
+			form.reset();
+			update();
+		} );
+		window.addEventListener( 'beforeunload', function ( e ) {
+			if ( dirty && ! submitting ) {
+				e.preventDefault();
+				e.returnValue = '';
+			}
+		} );
+
+		form.shrtUpdate = update;
+		form.shrtStart = function () {
+			update();
+			initial = snapshot();
+			update();
+		};
+	} );
 
 	// Editor.
 	var form = document.querySelector( '.shrt-editor' );
+	all( 'form.shrt-dirty' ).forEach( function ( other ) {
+		if ( other !== form ) {
+			other.shrtStart();
+		}
+	} );
 	if ( ! form ) {
 		return;
 	}
@@ -93,11 +215,8 @@
 	var data = JSON.parse( form.getAttribute( 'data-shrt' ) ),
 		output = form.querySelector( '.shrt-output' ),
 		note = form.querySelector( '.shrt-output__note' ),
-		state = form.querySelector( '.shrt-bar__state' ),
-		discard = form.querySelector( '.shrt-bar__discard' ),
 		fields = form.elements,
-		view = 'preview',
-		initial;
+		view = 'preview';
 
 	function format( text, number ) {
 		return text.replace( '%d', number ).replace( '%s', number );
@@ -109,7 +228,7 @@
 	}
 
 	function checked( name ) {
-		return [].slice.call( form.querySelectorAll( 'input[name="' + name + '[]"]:checked' ) ).map( function ( input ) {
+		return all( 'input[name="' + name + '[]"]:checked', form ).map( function ( input ) {
 			return input.value;
 		} );
 	}
@@ -175,6 +294,9 @@
 		if ( 'live' === view ) {
 			output.appendChild( block( c.labels.live, '#8c8f94', null === data.live ? c.labels.liveError : data.live ) );
 			notes.push( c.labels.liveNote );
+		} else if ( 'block' === mode() ) {
+			output.appendChild( block( c.labels.block, '#d63638', 'User-agent: *\nDisallow: /' ) );
+			notes.push( data.physical ? c.labels.fileNote : c.labels.blockNote );
 		} else {
 			var added = addedBlock(),
 				rules = null !== data.file ? data.file : fields.content.value.trim();
@@ -207,9 +329,9 @@
 	function summaries() {
 		fields.crawl_delay.disabled = ! fields.crawl_delay_on.checked;
 
-		form.querySelectorAll( '[data-shrt-summary]' ).forEach( function ( badge ) {
+		all( '[data-shrt-summary]', form ).forEach( function ( badge ) {
 			var type = badge.getAttribute( 'data-shrt-summary' ),
-				boxes = [].slice.call( badge.closest( 'details' ).querySelectorAll( 'input[type="checkbox"]' ) ),
+				boxes = all( 'input[type="checkbox"]', badge.closest( 'details' ) ),
 				on = boxes.filter( function ( box ) {
 					return box.checked;
 				} ).length,
@@ -235,38 +357,20 @@
 		} );
 	}
 
-	function snapshot() {
-		return new URLSearchParams( new FormData( form ) ).toString();
-	}
-
-	function update() {
+	form.addEventListener( 'shrt:change', function () {
 		summaries();
-		var dirty = snapshot() !== initial;
-		state.textContent = dirty ? c.labels.dirty : ( data.saved ? c.labels.saved : c.labels.clean );
-		state.classList.toggle( 'is-dirty', dirty );
-		discard.hidden = ! dirty;
 		render();
-	}
-
-	form.addEventListener( 'input', update );
-	form.addEventListener( 'change', update );
-
-	discard.addEventListener( 'click', function () {
-		form.reset();
-		update();
 	} );
 
-	form.querySelectorAll( '[data-shrt-view]' ).forEach( function ( button ) {
+	all( '[data-shrt-view]', form ).forEach( function ( button ) {
 		button.addEventListener( 'click', function () {
 			view = button.getAttribute( 'data-shrt-view' );
-			form.querySelectorAll( '[data-shrt-view]' ).forEach( function ( other ) {
+			all( '[data-shrt-view]', form ).forEach( function ( other ) {
 				other.setAttribute( 'aria-pressed', other === button ? 'true' : 'false' );
 			} );
 			render();
 		} );
 	} );
 
-	summaries();
-	initial = snapshot();
-	update();
+	form.shrtStart();
 }( window.shawesomeRobotsTxt ) );
