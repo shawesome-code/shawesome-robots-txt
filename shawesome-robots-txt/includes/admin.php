@@ -567,7 +567,7 @@ function shawesome_robots_txt_save_settings() {
 	update_site_option(
 		SHAWESOME_ROBOTS_TXT_OPTION,
 		array(
-			'mode'           => in_array( $mode, array( 'exact', 'base' ), true ) ? $mode : 'base',
+			'mode'           => in_array( $mode, array( 'exact', 'base', 'block' ), true ) ? $mode : 'base',
 			'respect_public' => ! empty( $_POST['respect_public'] ),
 			// The option is only shown in networks with subdirectories; keep it otherwise.
 			'path_sites'     => isset( $_POST['path_sites_shown'] ) ? ! empty( $_POST['path_sites'] ) : $settings['path_sites'],
@@ -962,6 +962,14 @@ function shawesome_robots_txt_render_settings( $updated = '' ) {
 				array( false, __( 'Sites without own rules keep the robots.txt of WordPress and the SEO plugins', 'shawesome-robots-txt' ) ),
 			),
 		),
+		'block' => array(
+			'desc'   => __( 'All crawlers are blocked from all paths. Rules and options of the sites are kept, but not delivered.', 'shawesome-robots-txt' ),
+			'rec'    => false,
+			'points' => array(
+				array( true, __( 'For staging and development sites', 'shawesome-robots-txt' ) ),
+				array( false, __( 'Not for live sites: they disappear from search engines', 'shawesome-robots-txt' ) ),
+			),
+		),
 	);
 	?>
 	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="shrt-settings shrt-dirty">
@@ -971,13 +979,13 @@ function shawesome_robots_txt_render_settings( $updated = '' ) {
 			<header class="shrt-card__head">
 				<div class="shrt-card__title">
 					<h2><?php esc_html_e( 'Default mode', 'shawesome-robots-txt' ); ?></h2>
-					<span><?php echo esc_html( is_multisite() ? __( 'Used by every site that does not set its own mode in the editor. "Blocking" can only be set per site.', 'shawesome-robots-txt' ) : __( 'Used unless the editor sets another mode.', 'shawesome-robots-txt' ) ); ?></span>
+					<span><?php echo esc_html( is_multisite() ? __( 'Used by every site that does not set its own mode in the editor.', 'shawesome-robots-txt' ) : __( 'Used unless the editor sets another mode.', 'shawesome-robots-txt' ) ); ?></span>
 				</div>
 			</header>
 			<fieldset class="shrt-modes shrt-modes--wide">
 				<legend class="screen-reader-text"><?php esc_html_e( 'Default mode', 'shawesome-robots-txt' ); ?></legend>
 				<?php foreach ( $modes as $value => $mode ) : ?>
-					<label class="shrt-mode">
+					<label class="shrt-mode<?php echo 'block' === $value ? ' shrt-mode--block' : ''; ?>">
 						<span class="shrt-mode__title">
 							<input type="radio" name="mode" value="<?php echo esc_attr( $value ); ?>" <?php checked( $settings['mode'], $value ); ?>>
 							<?php echo esc_html( shawesome_robots_txt_mode_label( $value ) ); ?>
@@ -1165,6 +1173,8 @@ function shawesome_robots_txt_render_editor( $site_id, $updated = '' ) {
 					</fieldset>
 				</section>
 
+				<p class="shrt-blocked-note"<?php echo 'block' === $mode ? '' : ' hidden'; ?>><?php esc_html_e( '"Blocking" mode: all crawlers are blocked from all paths. The options below are kept, but not delivered.', 'shawesome-robots-txt' ); ?></p>
+				<div class="shrt-blockable"<?php echo 'block' === $mode ? ' inert' : ''; ?>>
 				<section class="shrt-card">
 					<header class="shrt-card__head">
 						<div class="shrt-card__title">
@@ -1308,6 +1318,7 @@ function shawesome_robots_txt_render_editor( $site_id, $updated = '' ) {
 						</div>
 					</details>
 				</section>
+				</div>
 			</div>
 
 			<aside class="shrt-side">
@@ -1563,7 +1574,7 @@ function shawesome_robots_txt_render_sites() {
 								$mode = shawesome_robots_txt_site_mode( $site_id );
 								/* translators: %s: name of the default mode */
 								$text = '' === $mode ? sprintf( __( '%s (default)', 'shawesome-robots-txt' ), shawesome_robots_txt_mode_label( $settings['mode'] ) ) : shawesome_robots_txt_mode_label( $mode );
-								echo '<span class="shrt-mode-badge' . ( 'block' === $mode ? ' is-block' : '' ) . '">' . esc_html( $text ) . '</span>';
+								echo '<span class="shrt-mode-badge' . ( 'block' === shawesome_robots_txt_mode( $site_id ) ? ' is-block' : '' ) . '">' . esc_html( $text ) . '</span>';
 							}
 							?>
 						</td>
@@ -1671,7 +1682,7 @@ function shawesome_robots_txt_render_faq() {
 				array(
 					'id'   => 'modes',
 					'q'    => __( 'What is the difference between "Base", "Exact" and "Blocking"?', 'shawesome-robots-txt' ),
-					'a'    => __( 'In "Base" mode, your rules replace the WordPress default and SEO plugins may still change them: Yoast SEO removes the WordPress default rules and appends its own rules and sitemap, All in One SEO rebuilds the robots.txt. In "Exact" mode, your rules are delivered as written, after all SEO plugins have run. The crawler options and the rules for sites with a path are added in both modes. "Blocking" mode, which can only be set per site, blocks all crawlers from all paths – for example for a staging site.', 'shawesome-robots-txt' ),
+					'a'    => __( 'In "Base" mode, your rules replace the WordPress default and SEO plugins may still change them: Yoast SEO removes the WordPress default rules and appends its own rules and sitemap, All in One SEO rebuilds the robots.txt. In "Exact" mode, your rules are delivered as written, after all SEO plugins have run. The crawler options and the rules for sites with a path are added in both modes. "Blocking" mode blocks all crawlers from all paths – for example for a staging site.', 'shawesome-robots-txt' ),
 					'code' => __( "Base:     your rules, then SEO plugins may change them\nExact:    your rules as written, SEO plugins cannot change them\nBlocking: User-agent: * / Disallow: / for all crawlers", 'shawesome-robots-txt' ),
 				),
 				array(

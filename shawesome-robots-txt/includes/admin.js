@@ -354,7 +354,17 @@
 		} );
 	}
 
+	// In "Blocking" mode the other options are kept, but greyed out and not usable.
+	function blocking() {
+		var blocked = 'block' === mode(),
+			blockable = form.querySelector( '.shrt-blockable' );
+		blockable.inert = blocked;
+		blockable.toggleAttribute( 'inert', blocked );
+		form.querySelector( '.shrt-blocked-note' ).hidden = ! blocked;
+	}
+
 	form.addEventListener( 'shrt:change', function () {
+		blocking();
 		summaries();
 		render();
 	} );

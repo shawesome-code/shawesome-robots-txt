@@ -67,7 +67,7 @@ function shawesome_robots_txt_set_site_option( $site_id, $name, $value ) {
 
 /**
  * Mode chosen for a site: 'base', 'exact', 'block' or '' (use the default
- * mode). 'block' can only be chosen per site, not as the default mode.
+ * mode).
  *
  * @param int $site_id Site ID (ignored on a single site).
  * @return string
@@ -481,7 +481,7 @@ function shawesome_robots_txt_get_settings() {
 
 	$settings = wp_parse_args( (array) get_site_option( SHAWESOME_ROBOTS_TXT_OPTION, array() ), $defaults );
 
-	if ( ! in_array( $settings['mode'], array( 'exact', 'base' ), true ) ) {
+	if ( ! in_array( $settings['mode'], array( 'exact', 'base', 'block' ), true ) ) {
 		$settings['mode'] = $defaults['mode'];
 	}
 	$settings['respect_public'] = (bool) $settings['respect_public'];

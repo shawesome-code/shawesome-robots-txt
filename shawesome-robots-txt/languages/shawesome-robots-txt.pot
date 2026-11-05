@@ -31,7 +31,7 @@ msgstr ""
 msgid "The check failed."
 msgstr ""
 
-#: includes/admin.php:141 includes/admin.php:1319
+#: includes/admin.php:141 includes/admin.php:1330
 msgid "Currently live"
 msgstr ""
 
@@ -48,7 +48,7 @@ msgstr ""
 msgid "# May add, remove or rebuild lines in \"Base\" mode."
 msgstr ""
 
-#: includes/admin.php:146 includes/admin.php:1171
+#: includes/admin.php:146 includes/admin.php:1181
 msgid "Your rules"
 msgstr ""
 
@@ -96,12 +96,12 @@ msgstr ""
 msgid "\"Blocking\" mode: all crawlers are blocked from all paths. Your rules and crawler options are kept, but not delivered."
 msgstr ""
 
-#: includes/admin.php:158 includes/admin.php:1193
+#: includes/admin.php:158 includes/admin.php:1203
 msgid "No limit"
 msgstr ""
 
 #. translators: %d: seconds
-#: includes/admin.php:160 includes/admin.php:1193
+#: includes/admin.php:160 includes/admin.php:1203
 msgid "%d s delay"
 msgstr ""
 
@@ -332,615 +332,631 @@ msgstr ""
 msgid "Sites without own rules keep the robots.txt of WordPress and the SEO plugins"
 msgstr ""
 
-#: includes/admin.php:973 includes/admin.php:978
+#: includes/admin.php:966
+msgid "All crawlers are blocked from all paths. Rules and options of the sites are kept, but not delivered."
+msgstr ""
+
+#: includes/admin.php:969
+msgid "For staging and development sites"
+msgstr ""
+
+#: includes/admin.php:970
+msgid "Not for live sites: they disappear from search engines"
+msgstr ""
+
+#: includes/admin.php:981 includes/admin.php:986
 msgid "Default mode"
 msgstr ""
 
-#: includes/admin.php:974
-msgid "Used by every site that does not set its own mode in the editor. \"Blocking\" can only be set per site."
+#: includes/admin.php:982
+msgid "Used by every site that does not set its own mode in the editor."
 msgstr ""
 
-#: includes/admin.php:974
+#: includes/admin.php:982
 msgid "Used unless the editor sets another mode."
 msgstr ""
 
-#: includes/admin.php:985 includes/admin.php:1420
+#: includes/admin.php:993 includes/admin.php:1431
 msgid "recommended"
 msgstr ""
 
-#: includes/admin.php:1001
+#: includes/admin.php:1009
 msgid "Behaviour"
 msgstr ""
 
-#: includes/admin.php:1005
+#: includes/admin.php:1013
 msgid "Respect \"Discourage search engines\""
 msgstr ""
 
-#: includes/admin.php:1006
+#: includes/admin.php:1014
 msgid "On sites with this WordPress setting enabled, your custom rules are ignored and WordPress delivers its default robots.txt."
 msgstr ""
 
-#: includes/admin.php:1013
+#: includes/admin.php:1021
 msgid "Rules for sites with a path"
 msgstr ""
 
-#: includes/admin.php:1014
+#: includes/admin.php:1022
 msgid "Adds rules for sites whose address contains a path (example.com/blog/) to the robots.txt of their host, also in \"Exact\" mode: Disallow for sites hidden from search engines, Sitemap for public sites. The Disallow lines form a group for all crawlers, which crawlers with a group of their own do not read."
 msgstr ""
 
-#: includes/admin.php:1022
+#: includes/admin.php:1030
 msgid "Re-check status after"
 msgstr ""
 
-#: includes/admin.php:1023
+#: includes/admin.php:1031
 msgid "Sitemaps, blocked crawlers and AI training are checked again when the overview is opened after this time. \"Check again\" works at any time."
 msgstr ""
 
-#: includes/admin.php:1027
+#: includes/admin.php:1035
 msgid "hours"
 msgstr ""
 
-#: includes/admin.php:1033 includes/admin.php:1332
+#: includes/admin.php:1041 includes/admin.php:1343
 msgid "Saved"
 msgstr ""
 
-#: includes/admin.php:1033 includes/admin.php:1332
+#: includes/admin.php:1041 includes/admin.php:1343
 msgid "No changes"
 msgstr ""
 
-#: includes/admin.php:1034 includes/admin.php:1333
+#: includes/admin.php:1042 includes/admin.php:1344
 msgid "Discard"
 msgstr ""
 
-#: includes/admin.php:1035
+#: includes/admin.php:1043
 msgid "Save settings"
 msgstr ""
 
-#: includes/admin.php:1066
+#: includes/admin.php:1074
 msgid "This site is hidden from search engines, so the custom robots.txt is ignored and WordPress delivers its default robots.txt."
 msgstr ""
 
-#: includes/admin.php:1072
+#: includes/admin.php:1080
 msgid "In \"Base\" mode, Yoast SEO removes the lines \"User-agent: *\", \"Disallow: /wp-admin/\" and \"Allow: /wp-admin/admin-ajax.php\" when they appear in this order. Put the Allow line first (crawlers do not care about the order) or use \"Exact\" mode."
 msgstr ""
 
 #. translators: %s: file path
-#: includes/admin.php:1079
+#: includes/admin.php:1087
 msgid "This site is overridden by the file %s. The file is delivered; your rules below are only used once the file is removed."
 msgstr ""
 
-#: includes/admin.php:1089
+#: includes/admin.php:1097
 msgid "Copy file into your rules"
 msgstr ""
 
-#: includes/admin.php:1098
+#: includes/admin.php:1106
 msgid "Default"
 msgstr ""
 
 #. translators: %s: name of the default mode
-#: includes/admin.php:1100
+#: includes/admin.php:1108
 msgid "Uses the \"%s\" mode from the settings."
 msgstr ""
 
-#: includes/admin.php:1102
+#: includes/admin.php:1110
 msgid "Your rules replace the WordPress default; SEO plugins may still change them."
 msgstr ""
 
-#: includes/admin.php:1103
+#: includes/admin.php:1111
 msgid "Delivered exactly as written. SEO plugins cannot change it."
 msgstr ""
 
-#: includes/admin.php:1104
+#: includes/admin.php:1112
 msgid "Blocks all crawlers from all paths. Your rules and crawler options are kept, but not delivered. Not for live sites."
 msgstr ""
 
-#: includes/admin.php:1136
+#: includes/admin.php:1144
 msgid "All sites"
 msgstr ""
 
-#: includes/admin.php:1144
+#: includes/admin.php:1152
 msgid "Open live robots.txt"
 msgstr ""
 
-#: includes/admin.php:1144 includes/admin.php:1551
+#: includes/admin.php:1152 includes/admin.php:1562
 msgid "(opens in a new tab)"
 msgstr ""
 
-#: includes/admin.php:1153 includes/admin.php:1158 includes/admin.php:1531
+#: includes/admin.php:1161 includes/admin.php:1166 includes/admin.php:1542
 msgid "Mode"
 msgstr ""
 
-#: includes/admin.php:1154
+#: includes/admin.php:1162
 msgid "How your rules are combined with WordPress and SEO plugins."
 msgstr ""
 
-#: includes/admin.php:1172
+#: includes/admin.php:1176
+msgid "\"Blocking\" mode: all crawlers are blocked from all paths. The options below are kept, but not delivered."
+msgstr ""
+
+#: includes/admin.php:1182
 msgid "Leave empty to keep the robots.txt generated by WordPress and SEO plugins."
 msgstr ""
 
-#: includes/admin.php:1175
+#: includes/admin.php:1185
 msgid "Replace the current content with the example rules?"
 msgstr ""
 
-#: includes/admin.php:1175
+#: includes/admin.php:1185
 msgid "Example rules"
 msgstr ""
 
-#: includes/admin.php:1184
+#: includes/admin.php:1194
 msgid "Crawlers"
 msgstr ""
 
-#: includes/admin.php:1185
+#: includes/admin.php:1195
 msgid "Checked crawlers are blocked. They get a group of their own at the end of the robots.txt, in both modes. The Crawl-delay goes into the <code>User-agent: *</code> group."
 msgstr ""
 
-#: includes/admin.php:1191
+#: includes/admin.php:1201
 msgid "Crawl rate"
 msgstr ""
 
-#: includes/admin.php:1191
+#: includes/admin.php:1201
 msgid "Ask crawlers to wait between requests."
 msgstr ""
 
-#: includes/admin.php:1198
+#: includes/admin.php:1208
 msgid "Crawl-delay"
 msgstr ""
 
-#: includes/admin.php:1199
+#: includes/admin.php:1209
 msgid "Crawl-delay in seconds"
 msgstr ""
 
-#: includes/admin.php:1200
+#: includes/admin.php:1210
 msgid "seconds"
 msgstr ""
 
-#: includes/admin.php:1201
+#: includes/admin.php:1211
 msgid "Ignored by Google; followed by Bing and Yandex, for example."
 msgstr ""
 
-#: includes/admin.php:1208
+#: includes/admin.php:1218
 msgid "AI crawlers"
 msgstr ""
 
-#: includes/admin.php:1209
+#: includes/admin.php:1219
 msgid "Crawlers of AI companies."
 msgstr ""
 
-#: includes/admin.php:1211
+#: includes/admin.php:1221
 msgid "Training"
 msgstr ""
 
-#: includes/admin.php:1211
+#: includes/admin.php:1221
 msgid "Collect content to train AI models. Blocking them does not affect search engines."
 msgstr ""
 
-#: includes/admin.php:1212
+#: includes/admin.php:1222
 msgid "AI search"
 msgstr ""
 
-#: includes/admin.php:1212
+#: includes/admin.php:1222
 msgid "Find content for answers with sources in AI search. Blocked, the site does not appear there."
 msgstr ""
 
-#: includes/admin.php:1213
+#: includes/admin.php:1223
 msgid "Requests on behalf of users"
 msgstr ""
 
-#: includes/admin.php:1213
+#: includes/admin.php:1223
 msgid "Fetch a page when a user asks for it. Some of them, such as Perplexity-User and meta-externalfetcher, may ignore robots.txt."
 msgstr ""
 
-#: includes/admin.php:1218
+#: includes/admin.php:1228
 msgid "SEO tools"
 msgstr ""
 
-#: includes/admin.php:1219
+#: includes/admin.php:1229
 msgid "Crawlers of SEO tools that analyze links and content. Your own audits with these tools stop working as well."
 msgstr ""
 
-#: includes/admin.php:1224
+#: includes/admin.php:1234
 msgid "Web archives"
 msgstr ""
 
-#: includes/admin.php:1225
+#: includes/admin.php:1235
 msgid "Crawlers that save copies of pages. The Internet Archive does not promise to follow robots.txt in every case."
 msgstr ""
 
-#: includes/admin.php:1230
+#: includes/admin.php:1240
 msgid "Social media"
 msgstr ""
 
-#: includes/admin.php:1231
+#: includes/admin.php:1241
 msgid "Crawlers that build link previews (title, image, description) when your pages are shared. Blocked, shared links look plain or broken."
 msgstr ""
 
-#: includes/admin.php:1237
+#: includes/admin.php:1247
 msgid "Search engines"
 msgstr ""
 
-#: includes/admin.php:1238
+#: includes/admin.php:1248
 msgid "Blocked, the site disappears from the results of that search engine. To keep a site out of all search engines, use \"Discourage search engines from indexing this site\" in the reading settings of WordPress instead."
 msgstr ""
 
-#: includes/admin.php:1249
+#: includes/admin.php:1259
 msgid "Paths and files"
 msgstr ""
 
-#: includes/admin.php:1250
+#: includes/admin.php:1260
 msgid "Checked paths and file types are blocked for all crawlers. Added at the end of the robots.txt as a <code>User-agent: *</code> group, in both modes; crawlers with a group of their own ignore it."
 msgstr ""
 
-#: includes/admin.php:1257
+#: includes/admin.php:1267
 msgid "Resources and assets"
 msgstr ""
 
-#: includes/admin.php:1258
+#: includes/admin.php:1268
 msgid "File types crawlers may fetch. All are allowed unless checked."
 msgstr ""
 
-#: includes/admin.php:1260
+#: includes/admin.php:1270
 msgid "CSS and JavaScript"
 msgstr ""
 
-#: includes/admin.php:1260
+#: includes/admin.php:1270
 msgid "Google needs these to render your pages and to check whether they work on mobile devices."
 msgstr ""
 
-#: includes/admin.php:1261
+#: includes/admin.php:1271
 msgid "Images"
 msgstr ""
 
-#: includes/admin.php:1261
+#: includes/admin.php:1271
 msgid "Blocked, your images no longer appear in Google Images and other image searches."
 msgstr ""
 
-#: includes/admin.php:1262
+#: includes/admin.php:1272
 msgid "PDF files"
 msgstr ""
 
-#: includes/admin.php:1262
+#: includes/admin.php:1272
 msgid "Blocked, PDF documents no longer appear in search results."
 msgstr ""
 
-#: includes/admin.php:1269
+#: includes/admin.php:1279
 msgid "WordPress cleanup"
 msgstr ""
 
-#: includes/admin.php:1270
+#: includes/admin.php:1280
 msgid "Pages without value in search results that waste crawl budget."
 msgstr ""
 
-#: includes/admin.php:1272
+#: includes/admin.php:1282
 msgid "Internal search results"
 msgstr ""
 
-#: includes/admin.php:1272
+#: includes/admin.php:1282
 msgid "Google recommends keeping search result pages out of the crawl."
 msgstr ""
 
-#: includes/admin.php:1273
+#: includes/admin.php:1283
 msgid "Reply links of comments"
 msgstr ""
 
-#: includes/admin.php:1273
+#: includes/admin.php:1283
 msgid "Copies of a post for every comment reply (?replytocom=)."
 msgstr ""
 
-#: includes/admin.php:1274
+#: includes/admin.php:1284
 msgid "Feeds of posts, archives and comments"
 msgstr ""
 
-#: includes/admin.php:1274
+#: includes/admin.php:1284
 msgid "The main feed /feed/ stays open."
 msgstr ""
 
-#: includes/admin.php:1282
+#: includes/admin.php:1292
 msgid "WooCommerce"
 msgstr ""
 
-#: includes/admin.php:1283
+#: includes/admin.php:1293
 msgid "Shop pages that belong to a single visitor."
 msgstr ""
 
-#: includes/admin.php:1285
+#: includes/admin.php:1295
 msgid "Cart"
 msgstr ""
 
-#: includes/admin.php:1286
+#: includes/admin.php:1296
 msgid "Checkout"
 msgstr ""
 
-#: includes/admin.php:1287
+#: includes/admin.php:1297
 msgid "My account"
 msgstr ""
 
-#: includes/admin.php:1288
+#: includes/admin.php:1298
 msgid "\"Add to cart\" links"
 msgstr ""
 
-#: includes/admin.php:1288
+#: includes/admin.php:1298
 msgid "Links with ?add-to-cart= create a new cart for every crawler request."
 msgstr ""
 
-#: includes/admin.php:1298
+#: includes/admin.php:1308
 msgid "Sitemap"
 msgstr ""
 
-#: includes/admin.php:1298
+#: includes/admin.php:1308
 msgid "The sitemap of this site is linked at the end of the robots.txt unless checked."
 msgstr ""
 
-#: includes/admin.php:1304
+#: includes/admin.php:1314
 msgid "Do not add the sitemap"
 msgstr ""
 
-#: includes/admin.php:1306
+#: includes/admin.php:1316
 msgid "The sitemap of Yoast SEO, Rank Math or All in One SEO if active, otherwise the one of WordPress. It is not added twice if the robots.txt already links it."
 msgstr ""
 
-#: includes/admin.php:1316 includes/admin.php:1317
+#: includes/admin.php:1327 includes/admin.php:1328
 msgid "Output"
 msgstr ""
 
-#: includes/admin.php:1318
+#: includes/admin.php:1329
 msgid "Preview after save"
 msgstr ""
 
-#: includes/admin.php:1334
+#: includes/admin.php:1345
 msgid "Save robots.txt"
 msgstr ""
 
-#: includes/admin.php:1362 includes/admin.php:1422
+#: includes/admin.php:1373 includes/admin.php:1433
 msgid "Not recommended"
 msgstr ""
 
-#: includes/admin.php:1378
+#: includes/admin.php:1389
 msgid "All crawlers"
 msgstr ""
 
-#: includes/admin.php:1380
+#: includes/admin.php:1391
 msgid "Blocks every crawler, including all search engines. Only for sites that must not be crawled at all."
 msgstr ""
 
 #. translators: %s: further user agent tokens of the same operator
-#: includes/admin.php:1386
+#: includes/admin.php:1397
 msgid "Also: %s"
 msgstr ""
 
 #. translators: %s: URL of the robots.txt at the root of the host
-#: includes/admin.php:1447
+#: includes/admin.php:1458
 msgid "The address of this site contains a path. Crawlers only request the robots.txt at the root of the host, so the rules for this site belong in %s."
 msgstr ""
 
-#: includes/admin.php:1507
+#: includes/admin.php:1518
 msgid "All"
 msgstr ""
 
-#: includes/admin.php:1508
+#: includes/admin.php:1519
 msgid "Errors"
 msgstr ""
 
-#: includes/admin.php:1509
+#: includes/admin.php:1520
 msgid "Warnings"
 msgstr ""
 
-#: includes/admin.php:1510
+#: includes/admin.php:1521
 msgid "OK"
 msgstr ""
 
-#: includes/admin.php:1514
+#: includes/admin.php:1525
 msgid "Sites"
 msgstr ""
 
-#: includes/admin.php:1515
+#: includes/admin.php:1526
 msgid "Filter sites by status"
 msgstr ""
 
-#: includes/admin.php:1521
+#: includes/admin.php:1532
 msgid "Search sites"
 msgstr ""
 
-#: includes/admin.php:1522
+#: includes/admin.php:1533
 msgid "Search sites …"
 msgstr ""
 
-#: includes/admin.php:1523
+#: includes/admin.php:1534
 msgid "Check all sites"
 msgstr ""
 
-#: includes/admin.php:1530
+#: includes/admin.php:1541
 msgid "Site"
 msgstr ""
 
-#: includes/admin.php:1532
+#: includes/admin.php:1543
 msgctxt "where the robots.txt comes from"
 msgid "Source"
 msgstr ""
 
-#: includes/admin.php:1533
+#: includes/admin.php:1544
 msgid "SEO plugin"
 msgstr ""
 
-#: includes/admin.php:1534
+#: includes/admin.php:1545
 msgid "Status"
 msgstr ""
 
-#: includes/admin.php:1550
+#: includes/admin.php:1561
 msgid "Edit rules"
 msgstr ""
 
-#: includes/admin.php:1551
+#: includes/admin.php:1562
 msgid "View"
 msgstr ""
 
-#: includes/admin.php:1552 includes/admin.php:1609
+#: includes/admin.php:1563 includes/admin.php:1620
 msgid "File override"
 msgstr ""
 
 #. translators: %s: name of the default mode
-#: includes/admin.php:1565
+#: includes/admin.php:1576
 msgid "%s (default)"
 msgstr ""
 
-#: includes/admin.php:1573
+#: includes/admin.php:1584
 msgid "Served by its host"
 msgstr ""
 
 #. translators: %s: host name
-#: includes/admin.php:1575
+#: includes/admin.php:1586
 msgid "robots.txt of %s"
 msgstr ""
 
-#: includes/admin.php:1577
+#: includes/admin.php:1588
 msgid "Sitemap line added"
 msgstr ""
 
-#: includes/admin.php:1577
+#: includes/admin.php:1588
 msgid "Disallow line added"
 msgstr ""
 
-#: includes/admin.php:1582
+#: includes/admin.php:1593
 msgctxt "where the robots.txt comes from"
 msgid "File"
 msgstr ""
 
-#: includes/admin.php:1585
+#: includes/admin.php:1596
 msgctxt "where the robots.txt comes from"
 msgid "Database"
 msgstr ""
 
-#: includes/admin.php:1587
+#: includes/admin.php:1598
 msgctxt "where the robots.txt comes from"
 msgid "Generated"
 msgstr ""
 
 #. translators: %s: names of the active SEO plugins
-#: includes/admin.php:1589
+#: includes/admin.php:1600
 msgid "WordPress + %s"
 msgstr ""
 
-#: includes/admin.php:1589
+#: includes/admin.php:1600
 msgid "WordPress"
 msgstr ""
 
-#: includes/admin.php:1592
+#: includes/admin.php:1603
 msgid "Ignored – site hidden from search engines"
 msgstr ""
 
-#: includes/admin.php:1610
+#: includes/admin.php:1621
 msgid "– a file here replaces the database content, e.g. for deployments"
 msgstr ""
 
-#: includes/admin.php:1614
+#: includes/admin.php:1625
 msgid "or"
 msgstr ""
 
 #. translators: %s: file name
-#: includes/admin.php:1621
+#: includes/admin.php:1632
 msgid "hyphenated name wins"
 msgstr ""
 
-#: includes/admin.php:1621
+#: includes/admin.php:1632
 msgid "file found: %s"
 msgstr ""
 
-#: includes/admin.php:1621
+#: includes/admin.php:1632
 msgid "no file found"
 msgstr ""
 
-#: includes/admin.php:1630
+#: includes/admin.php:1641
 msgid "No sites match."
 msgstr ""
 
 #. translators: %s: name of the directory for override files
-#: includes/admin.php:1634
+#: includes/admin.php:1645
 msgid "Override files live in %s. Use \"File override\" in a row for the exact file name."
 msgstr ""
 
-#: includes/admin.php:1646 includes/admin.php:1732
+#: includes/admin.php:1657 includes/admin.php:1743
 msgid "Run status check"
 msgstr ""
 
-#: includes/admin.php:1651
+#: includes/admin.php:1662
 msgid "Troubleshooting"
 msgstr ""
 
-#: includes/admin.php:1652
+#: includes/admin.php:1663
 msgid "When the robots.txt does not look right"
 msgstr ""
 
-#: includes/admin.php:1656
+#: includes/admin.php:1667
 msgid "My robots.txt is not delivered."
 msgstr ""
 
-#: includes/admin.php:1657
+#: includes/admin.php:1668
 msgid "WordPress only delivers its robots.txt when no physical robots.txt file exists in the web root. If one exists, the web server delivers it directly and the plugin is never asked – the robots.txt tab shows the file and offers to rename it. Also check that the site is not set to \"Discourage search engines\" and that override files are readable by the web server."
 msgstr ""
 
-#: includes/admin.php:1662
+#: includes/admin.php:1673
 msgid "I changed the content in the editor, but the old one is still delivered."
 msgstr ""
 
-#: includes/admin.php:1663
+#: includes/admin.php:1674
 msgid "A file in the override directory takes precedence over your rules – delete it or copy it into your rules first. Otherwise it is almost always a cache: purge your page cache plugin, your CDN and the server cache, then reload /robots.txt in a private window."
 msgstr ""
 
-#: includes/admin.php:1668
+#: includes/admin.php:1679
 msgid "Configuration"
 msgstr ""
 
-#: includes/admin.php:1669
+#: includes/admin.php:1680
 msgid "Modes and checks"
 msgstr ""
 
-#: includes/admin.php:1673
+#: includes/admin.php:1684
 msgid "What is the difference between \"Base\", \"Exact\" and \"Blocking\"?"
 msgstr ""
 
-#: includes/admin.php:1674
-msgid "In \"Base\" mode, your rules replace the WordPress default and SEO plugins may still change them: Yoast SEO removes the WordPress default rules and appends its own rules and sitemap, All in One SEO rebuilds the robots.txt. In \"Exact\" mode, your rules are delivered as written, after all SEO plugins have run. The crawler options and the rules for sites with a path are added in both modes. \"Blocking\" mode, which can only be set per site, blocks all crawlers from all paths – for example for a staging site."
-msgstr ""
-
-#: includes/admin.php:1675
-msgid "Base:     your rules, then SEO plugins may change them\nExact:    your rules as written, SEO plugins cannot change them\nBlocking: User-agent: * / Disallow: / for all crawlers"
-msgstr ""
-
-#: includes/admin.php:1679
-msgid "What does the status check?"
-msgstr ""
-
-#: includes/admin.php:1680
-msgid "It requests the robots.txt of the site as crawlers get it and shows whether all crawlers are blocked, how many sitemaps are linked and whether crawlers that collect content for AI training are blocked. It also reports when the robots.txt cannot be loaded, when a physical file is delivered and when the site is hidden from search engines. The result is kept for the time set in the settings."
+#: includes/admin.php:1685
+msgid "In \"Base\" mode, your rules replace the WordPress default and SEO plugins may still change them: Yoast SEO removes the WordPress default rules and appends its own rules and sitemap, All in One SEO rebuilds the robots.txt. In \"Exact\" mode, your rules are delivered as written, after all SEO plugins have run. The crawler options and the rules for sites with a path are added in both modes. \"Blocking\" mode blocks all crawlers from all paths – for example for a staging site."
 msgstr ""
 
 #: includes/admin.php:1686
-msgid "Compatibility"
+msgid "Base:     your rules, then SEO plugins may change them\nExact:    your rules as written, SEO plugins cannot change them\nBlocking: User-agent: * / Disallow: / for all crawlers"
 msgstr ""
 
-#: includes/admin.php:1687
-msgid "Setup and removal"
+#: includes/admin.php:1690
+msgid "What does the status check?"
 msgstr ""
 
 #: includes/admin.php:1691
-msgid "Does it work if WordPress is installed in a subdirectory?"
-msgstr ""
-
-#: includes/admin.php:1692
-msgid "Crawlers only read the robots.txt at the root of a domain. If the address of the site contains a path (example.com/blog/), WordPress cannot deliver it there, so the plugin does nothing and says so. If only the WordPress files are in a subdirectory and the address is the root of the domain, it works."
-msgstr ""
-
-#: includes/admin.php:1696
-msgid "What happens on uninstall?"
+msgid "It requests the robots.txt of the site as crawlers get it and shows whether all crawlers are blocked, how many sitemaps are linked and whether crawlers that collect content for AI training are blocked. It also reports when the robots.txt cannot be loaded, when a physical file is delivered and when the site is hidden from search engines. The result is kept for the time set in the settings."
 msgstr ""
 
 #: includes/admin.php:1697
+msgid "Compatibility"
+msgstr ""
+
+#: includes/admin.php:1698
+msgid "Setup and removal"
+msgstr ""
+
+#: includes/admin.php:1702
+msgid "Does it work if WordPress is installed in a subdirectory?"
+msgstr ""
+
+#: includes/admin.php:1703
+msgid "Crawlers only read the robots.txt at the root of a domain. If the address of the site contains a path (example.com/blog/), WordPress cannot deliver it there, so the plugin does nothing and says so. If only the WordPress files are in a subdirectory and the address is the root of the domain, it works."
+msgstr ""
+
+#: includes/admin.php:1707
+msgid "What happens on uninstall?"
+msgstr ""
+
+#: includes/admin.php:1708
 msgid "The settings and everything stored per site – rules, mode, crawler options and status – are deleted from the database, on every site of a network. Files on the server are never touched: override files and a renamed _old-robots.txt are kept."
 msgstr ""
 
-#: includes/admin.php:1730
+#: includes/admin.php:1741
 msgid "Need more help?"
 msgstr ""
 
-#: includes/admin.php:1731
+#: includes/admin.php:1742
 msgid "Run the status check first – it detects most delivery problems automatically."
 msgstr ""

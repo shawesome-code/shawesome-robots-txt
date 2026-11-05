@@ -95,6 +95,9 @@
 .shrt-mode__title input { margin: 0; }
 .shrt-mode__desc { color: #50575e; font-size: 12px; line-height: 1.45; text-wrap: pretty; }
 .shrt-mode--block:has(input:checked) { border-color: #d63638; background: #fcf0f1; }
+.shrt-blockable { display: flex; flex-direction: column; gap: 16px; transition: opacity .15s; }
+.shrt-blockable[inert] { opacity: .45; filter: grayscale(1); }
+.shrt-blocked-note { margin: 0; padding: 10px 14px; background: #fcf0f1; border: 1px solid #f0c4c6; border-left: 4px solid #d63638; color: #8a2424; font-weight: 600; }
 .shrt-mode--block .shrt-mode__title { color: #8a2424; }
 .shrt-modes--wide { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 .shrt-modes--wide .shrt-mode { padding: 14px; gap: 8px; }
