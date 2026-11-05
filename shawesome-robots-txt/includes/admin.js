@@ -201,6 +201,19 @@
 		};
 	} );
 
+	// Settings: confirm before "Blocking" becomes the default mode.
+	var settings = document.querySelector( '.shrt-settings' );
+	if ( settings ) {
+		var savedMode = ( settings.querySelector( 'input[name="mode"]:checked' ) || {} ).value;
+		settings.addEventListener( 'submit', function ( e ) {
+			var picked = settings.querySelector( 'input[name="mode"]:checked' );
+			if ( picked && 'block' === picked.value && 'block' !== savedMode && ! window.confirm( c.labels.confirmBlock ) ) {
+				e.preventDefault();
+				e.stopImmediatePropagation();
+			}
+		}, true );
+	}
+
 	// Editor.
 	var form = document.querySelector( '.shrt-editor' );
 	all( 'form.shrt-dirty' ).forEach( function ( other ) {

@@ -163,6 +163,9 @@ function shawesome_robots_txt_load_page() {
 						'noneBlocked' => __( 'None blocked', 'shawesome-robots-txt' ),
 						'added'       => __( 'Added', 'shawesome-robots-txt' ),
 						'notAdded'    => __( 'Not added', 'shawesome-robots-txt' ),
+						'confirmBlock' => is_multisite()
+							? __( 'Make "Blocking" the default mode? All crawlers will be blocked on every site that does not set its own mode, and search engines will drop these sites.', 'shawesome-robots-txt' )
+							: __( 'Make "Blocking" the default mode? All crawlers will be blocked on this site, and search engines will drop it.', 'shawesome-robots-txt' ),
 						'dirty'      => __( 'Unsaved changes', 'shawesome-robots-txt' ),
 					),
 				)
