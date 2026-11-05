@@ -250,7 +250,7 @@
 			}
 		} );
 		[ 'css_js', 'images', 'pdfs' ].forEach( function ( key ) {
-			if ( ! fields[ key ].checked ) {
+			if ( fields[ key ].checked ) {
 				star = star.concat( data.resources[ key ] );
 			}
 		} );
@@ -267,7 +267,7 @@
 		if ( star.length ) {
 			parts.push( 'User-agent: *\n' + star.join( '\n' ) );
 		}
-		if ( fields.sitemap.checked ) {
+		if ( ! fields.no_sitemap.checked ) {
 			parts.push( 'Sitemap: ' + data.sitemapUrl );
 		}
 		return parts.length ? '# Added by shawesome robots.txt\n' + parts.join( '\n\n' ) : '';
@@ -325,7 +325,7 @@
 		note.hidden = ! note.textContent;
 	}
 
-	// Badges of the option groups: "rate", "allow" (unchecked = blocked), "block" (checked = blocked), "toggle".
+	// Badges of the option groups: "rate", "block" (checked = blocked) and "sitemap" (checked = not added).
 	function summaries() {
 		fields.crawl_delay.disabled = ! fields.crawl_delay_on.checked;
 
@@ -341,15 +341,12 @@
 			if ( 'rate' === type ) {
 				active = fields.crawl_delay_on.checked;
 				text = active ? format( c.labels.delay, parseInt( fields.crawl_delay.value, 10 ) || 10 ) : c.labels.noLimit;
-			} else if ( 'allow' === type ) {
-				active = on < boxes.length;
-				text = active ? format( c.labels.blocked, boxes.length - on ) : c.labels.allAllowed;
 			} else if ( 'block' === type ) {
 				active = on > 0;
 				text = active ? format( c.labels.blocked, on ) : c.labels.noneBlocked;
 			} else {
 				active = on > 0;
-				text = active ? c.labels.on : c.labels.off;
+				text = active ? c.labels.notAdded : c.labels.added;
 			}
 
 			badge.textContent = text;

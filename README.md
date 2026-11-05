@@ -23,7 +23,7 @@ The domain with dots (`www.example.com.txt`) is accepted as an unambiguous alter
 
 - A site gets its own robots.txt if its address has no path: single sites at the root, every site of a network with (sub)domains, and the main site and sites with their own domain in a network with subdirectories
 - Sites with a path (`example.com/blog/`) in a network with subdirectories: their host's robots.txt gets `Disallow` for hidden sites and `Sitemap` for public ones (can be switched off, also applies in "Exact" mode)
-- Per site: mode, Crawl-delay, crawlers to block one by one (AI training, AI search, user requests, SEO tools, web archives, social media, search engines), resources (CSS/JS, images, PDFs), WordPress cleanup, WooCommerce pages and an automatic Sitemap line
+- Per site: mode; *Crawlers* – Crawl-delay and crawlers to block one by one (AI training, AI search, user requests, SEO tools, web archives, social media, search engines); *Paths and files* – resources (CSS/JS, images, PDFs), WordPress cleanup, WooCommerce pages and the Sitemap line (added by default). A checked option always blocks or leaves out something.
 - Editor button for example rules, preview of the result and the live robots.txt side by side
 - A physical `robots.txt` in the web root is shown and can be renamed to `_old-robots.txt` (never deleted)
 - Sites set to "Discourage search engines" keep the WordPress default (can be switched off)

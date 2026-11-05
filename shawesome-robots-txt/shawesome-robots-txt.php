@@ -98,26 +98,26 @@ function shawesome_robots_txt_mode( $site_id ) {
  * Options of a site for added rules, merged with the defaults.
  *
  * - crawl_delay: seconds, 0 = no Crawl-delay line.
- * - css_js, images, pdfs: allowed (default) or blocked with Disallow lines.
+ * - css_js, images, pdfs: blocked with Disallow lines (default: allowed).
  * - bots: keys of blocked crawlers (see shawesome_robots_txt_bots()).
  * - cleanup, woo: keys of blocked WordPress and WooCommerce paths.
- * - sitemap: add a Sitemap line for the sitemap of the site.
+ * - no_sitemap: do not add the Sitemap line (default: added).
  *
  * @param int $site_id Site ID (ignored on a single site).
- * @return array{crawl_delay: int, css_js: bool, images: bool, pdfs: bool, bots: string[], cleanup: string[], woo: string[], sitemap: bool}
+ * @return array{crawl_delay: int, css_js: bool, images: bool, pdfs: bool, bots: string[], cleanup: string[], woo: string[], no_sitemap: bool}
  */
 function shawesome_robots_txt_site_rules( $site_id ) {
 	$rules = wp_parse_args(
 		(array) shawesome_robots_txt_get_site_option( $site_id, SHAWESOME_ROBOTS_TXT_RULES_OPTION, array() ),
 		array(
 			'crawl_delay' => 0,
-			'css_js'      => true,
-			'images'      => true,
-			'pdfs'        => true,
+			'css_js'      => false,
+			'images'      => false,
+			'pdfs'        => false,
 			'bots'        => array(),
 			'cleanup'     => array(),
 			'woo'         => array(),
-			'sitemap'     => false,
+			'no_sitemap'  => false,
 		)
 	);
 
@@ -129,7 +129,7 @@ function shawesome_robots_txt_site_rules( $site_id ) {
 		'bots'        => array_values( array_intersect( (array) $rules['bots'], array_keys( shawesome_robots_txt_bot_index() ) ) ),
 		'cleanup'     => array_values( array_intersect( (array) $rules['cleanup'], array_keys( shawesome_robots_txt_cleanup_lines() ) ) ),
 		'woo'         => array_values( array_intersect( (array) $rules['woo'], array( 'cart', 'checkout', 'account', 'add_to_cart' ) ) ),
-		'sitemap'     => (bool) $rules['sitemap'],
+		'no_sitemap'  => (bool) $rules['no_sitemap'],
 	);
 }
 
@@ -319,7 +319,7 @@ function shawesome_robots_txt_added_block( $site_id, $output = '' ) {
 		}
 	}
 	foreach ( array( 'css_js', 'images', 'pdfs' ) as $key ) {
-		if ( ! $rules[ $key ] ) {
+		if ( $rules[ $key ] ) {
 			$star = array_merge( $star, shawesome_robots_txt_site_rule_lines_for( $key ) );
 		}
 	}
@@ -340,7 +340,7 @@ function shawesome_robots_txt_added_block( $site_id, $output = '' ) {
 	if ( $star ) {
 		$parts[] = "User-agent: *\n" . implode( "\n", $star );
 	}
-	if ( $rules['sitemap'] ) {
+	if ( ! $rules['no_sitemap'] ) {
 		$url = shawesome_robots_txt_sitemap_url( $site_id );
 		if ( false === stripos( $output, $url ) ) {
 			$parts[] = 'Sitemap: ' . $url;

@@ -23,15 +23,19 @@ A button inserts example rules: the WordPress default plus the sitemap of the si
 
 **Options per site**
 
-The editor of each site also sets:
+The editor of each site also sets the mode (see below) and two groups of options. A checked option always blocks or leaves out something.
 
-* the mode (see below)
+*Crawlers*
+
 * a Crawl-delay (off by default, 10 seconds when switched on; Google ignores it, Bing and Yandex for example follow it)
 * crawlers to block, one by one: AI crawlers (training, AI search, requests on behalf of users), SEO tools (Ahrefs, Semrush, Moz, Majestic and others), web archives, social media link previews and search engines – the last two are marked as not recommended
-* resources and assets: CSS and JavaScript files, images and PDF files are allowed by default; when switched off, Disallow lines block them
+
+*Paths and files*
+
+* resources and assets: CSS and JavaScript files, images and PDF files are allowed unless checked
 * WordPress cleanup: internal search results, reply links of comments, feeds of posts and archives
 * WooCommerce (when active): cart, checkout, my account and "add to cart" links
-* a Sitemap line for the sitemap of Yoast SEO, Rank Math, All in One SEO or WordPress
+* the sitemap: by default, a Sitemap line for the sitemap of Yoast SEO, Rank Math, All in One SEO or WordPress is added, unless the robots.txt already links it; it can be left out
 
 These lines are added at the end of the robots.txt, in both modes: blocked crawlers as a group of their own, everything else as a group for all crawlers (`User-agent: *`), which crawlers with a group of their own do not read. Like all of robots.txt, this only works with crawlers that follow it.
 
