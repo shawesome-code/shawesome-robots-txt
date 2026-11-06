@@ -553,7 +553,7 @@ function shawesome_robots_txt_path_rules( $host ) {
 		$rules .= "\nUser-agent: *\n" . implode( "\n", $disallow );
 	}
 	if ( $sitemaps ) {
-		$rules .= "\n\n" . implode( "\n", $sitemaps );
+		$rules .= ( $disallow ? "\n\n" : "\n" ) . implode( "\n", $sitemaps );
 	}
 
 	return $rules;
