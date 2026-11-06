@@ -462,8 +462,9 @@ function shawesome_robots_txt_is_public( $site_id ) {
  *   plugins may still add their rules and sitemaps.
  *   'exact': the content is delivered as is, after all SEO plugins
  *   (Yoast SEO, All in One SEO …) have run.
- * - respect_public: sites set to "Discourage search engines" keep the
- *   WordPress default instead of the file.
+ * - respect_public: sites set to "Discourage search engines" are blocked for
+ *   all crawlers ("Blocking"), whatever their mode. WordPress itself no
+ *   longer blocks them in its robots.txt.
  * - path_sites: in a network, add rules for the sites with a path to the
  *   robots.txt of their host (see shawesome_robots_txt_path_rules()).
  * - status_hours: how long the status of a robots.txt is kept before it is
@@ -714,22 +715,13 @@ function shawesome_robots_txt_dedupe_sitemaps( $output ) {
  * file or database content.
  *
  * @param string $output robots.txt output so far.
- * @param bool   $public Whether the site is public (false = discourage search engines).
  * @return string
  */
-function shawesome_robots_txt_filter_robots_txt( $output, $public ) {
+function shawesome_robots_txt_filter_robots_txt( $output ) {
 	// WordPress has already resolved the current site from the requested host.
 	$site_id = get_current_blog_id();
 
 	if ( ! shawesome_robots_txt_serves_own( $site_id ) ) {
-		return $output;
-	}
-
-	$settings = shawesome_robots_txt_get_settings();
-
-	// Keep the WordPress default for sites hidden from search engines, so
-	// that e.g. a staging site does not deliver the rules of production.
-	if ( $settings['respect_public'] && ! $public ) {
 		return $output;
 	}
 
@@ -755,10 +747,9 @@ function shawesome_robots_txt_filter_dedupe( $output ) {
  * crawlers, and in a network the rules for the sites with a path on this host.
  *
  * @param string $output robots.txt output.
- * @param bool   $public Whether the site is public (false = discourage search engines).
  * @return string
  */
-function shawesome_robots_txt_filter_added_rules( $output, $public ) {
+function shawesome_robots_txt_filter_added_rules( $output ) {
 	$site_id  = get_current_blog_id();
 	$settings = shawesome_robots_txt_get_settings();
 
@@ -766,12 +757,7 @@ function shawesome_robots_txt_filter_added_rules( $output, $public ) {
 		return $output;
 	}
 
-	$blocks = array();
-
-	// Like the custom robots.txt, the site rules are left out on hidden sites.
-	if ( ! ( $settings['respect_public'] && ! $public ) ) {
-		$blocks[] = shawesome_robots_txt_added_block( $site_id, $output );
-	}
+	$blocks = array( shawesome_robots_txt_added_block( $site_id, $output ) );
 
 	if ( $settings['path_sites'] ) {
 		$blocks[] = shawesome_robots_txt_path_rules( shawesome_robots_txt_host( $site_id ) );
@@ -780,6 +766,19 @@ function shawesome_robots_txt_filter_added_rules( $output, $public ) {
 	$blocks = array_filter( $blocks );
 
 	return $blocks ? rtrim( $output ) . "\n\n" . implode( "\n\n", $blocks ) . "\n" : $output;
+}
+
+/**
+ * Whether a site is blocked because it is hidden from search engines
+ * (setting "respect_public").
+ *
+ * @param int $site_id Site ID (ignored on a single site).
+ * @return bool
+ */
+function shawesome_robots_txt_hidden_blocked( $site_id ) {
+	$settings = shawesome_robots_txt_get_settings();
+
+	return $settings['respect_public'] && ! shawesome_robots_txt_is_public( $site_id );
 }
 
 /**
@@ -800,12 +799,13 @@ function shawesome_robots_txt_filter_block() {
  * 'exact' runs at PHP_INT_MAX, after Yoast SEO (99999) and All in One SEO
  * (10000), which would otherwise append to or rebuild the file. 'base' runs
  * at 10, before them. The priority can be changed with the filter
- * 'shawesome_robots_txt_priority'. 'block' replaces everything at PHP_INT_MAX.
+ * 'shawesome_robots_txt_priority'. 'block' replaces everything at PHP_INT_MAX, also
+ * on sites hidden from search engines.
  */
 function shawesome_robots_txt_register_filters() {
 	$mode = shawesome_robots_txt_mode( get_current_blog_id() );
 
-	if ( 'block' === $mode ) {
+	if ( 'block' === $mode || shawesome_robots_txt_hidden_blocked( get_current_blog_id() ) ) {
 		add_filter( 'robots_txt', 'shawesome_robots_txt_filter_block', PHP_INT_MAX );
 		return;
 	}
@@ -813,10 +813,10 @@ function shawesome_robots_txt_register_filters() {
 	$priority = 'exact' === $mode ? PHP_INT_MAX : 10;
 	$priority = (int) apply_filters( 'shawesome_robots_txt_priority', $priority, $mode );
 
-	add_filter( 'robots_txt', 'shawesome_robots_txt_filter_robots_txt', $priority, 2 );
+	add_filter( 'robots_txt', 'shawesome_robots_txt_filter_robots_txt', $priority );
 
 	// Added first, so that duplicate Sitemap lines are removed afterwards.
-	add_filter( 'robots_txt', 'shawesome_robots_txt_filter_added_rules', PHP_INT_MAX, 2 );
+	add_filter( 'robots_txt', 'shawesome_robots_txt_filter_added_rules', PHP_INT_MAX );
 
 	if ( 'base' === $mode ) {
 		add_filter( 'robots_txt', 'shawesome_robots_txt_filter_dedupe', PHP_INT_MAX );

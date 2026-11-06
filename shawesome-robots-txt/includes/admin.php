@@ -150,7 +150,7 @@ function shawesome_robots_txt_load_page() {
 						'paths'      => __( 'Sites with a path', 'shawesome-robots-txt' ),
 						'exactNote'  => __( '"Exact" mode: crawlers get these lines as shown.', 'shawesome-robots-txt' ),
 						'baseNote'   => __( '"Base" mode: the SEO plugins may still change the result. "Currently live" shows what crawlers get now.', 'shawesome-robots-txt' ),
-						'hiddenNote' => __( 'This site is hidden from search engines, so WordPress delivers its default robots.txt instead of your rules and crawler options.', 'shawesome-robots-txt' ),
+						'hiddenNote' => __( 'This site is hidden from search engines, so all crawlers are blocked from all paths ("Blocking"). Your rules and options are kept, but not delivered.', 'shawesome-robots-txt' ),
 						'fileNote'   => __( 'A physical robots.txt in the web root is delivered instead of all of this.', 'shawesome-robots-txt' ),
 						'liveNote'   => __( 'What crawlers get now. Saved changes appear here after reloading the page.', 'shawesome-robots-txt' ),
 						'block'      => __( 'Blocking mode', 'shawesome-robots-txt' ),
@@ -381,7 +381,9 @@ function shawesome_robots_txt_status_items( $site_id, $status ) {
 		/* translators: %s: error message or HTTP status code */
 		$items[] = array( 'bad', esc_html( sprintf( __( 'Not reachable (%s)', 'shawesome-robots-txt' ), $status['error'] ) ) );
 	} else {
-		if ( $status['all_blocked'] ) {
+		if ( $status['all_blocked'] && ( 'block' === shawesome_robots_txt_mode( $site_id ) || shawesome_robots_txt_hidden_blocked( $site_id ) ) ) {
+			$items[] = array( 'warn', esc_html__( 'All crawlers blocked ("Blocking")', 'shawesome-robots-txt' ) );
+		} elseif ( $status['all_blocked'] ) {
 			$items[] = array( 'bad', esc_html__( 'All crawlers blocked', 'shawesome-robots-txt' ) );
 		} elseif ( ! empty( $status['google_blocked'] ) ) {
 			$items[] = array( 'bad', esc_html__( 'Googlebot blocked', 'shawesome-robots-txt' ) );
@@ -1013,8 +1015,8 @@ function shawesome_robots_txt_render_settings( $updated = '' ) {
 			</header>
 			<div class="shrt-row">
 				<div>
-					<label for="shrt-respect-public" class="shrt-row__title"><?php esc_html_e( 'Respect "Discourage search engines"', 'shawesome-robots-txt' ); ?></label>
-					<p><?php esc_html_e( 'On sites with this WordPress setting enabled, your custom rules are ignored and WordPress delivers its default robots.txt.', 'shawesome-robots-txt' ); ?></p>
+					<label for="shrt-respect-public" class="shrt-row__title"><?php esc_html_e( 'Block sites hidden from search engines', 'shawesome-robots-txt' ); ?></label>
+					<p><?php esc_html_e( 'Sites set to "Discourage search engines from indexing this site" get "Blocking": all crawlers are blocked from all paths, whatever their mode. WordPress itself no longer blocks these sites in its robots.txt, and SEO plugins may even allow everything.', 'shawesome-robots-txt' ); ?></p>
 				</div>
 				<input type="checkbox" role="switch" class="shrt-switch-toggle" id="shrt-respect-public" name="respect_public" value="1" <?php checked( $settings['respect_public'] ); ?>>
 			</div>
@@ -1069,12 +1071,12 @@ function shawesome_robots_txt_render_editor( $site_id, $updated = '' ) {
 	$settings = shawesome_robots_txt_get_settings();
 	$mode     = shawesome_robots_txt_mode( $site_id );
 	$seo      = shawesome_robots_txt_active_seo_plugins( $site_id );
-	$hidden   = $settings['respect_public'] && ! shawesome_robots_txt_is_public( $site_id );
+	$hidden   = shawesome_robots_txt_hidden_blocked( $site_id );
 	$fetched  = shawesome_robots_txt_fetch( $site_id );
 	$status   = shawesome_robots_txt_scan( $site_id, $fetched );
 
 	if ( $hidden ) {
-		shawesome_robots_txt_notice( esc_html__( 'This site is hidden from search engines, so the custom robots.txt is ignored and WordPress delivers its default robots.txt.', 'shawesome-robots-txt' ), 'warning', true );
+		shawesome_robots_txt_notice( esc_html__( 'This site is set to "Discourage search engines", so all crawlers are blocked from all paths ("Blocking"), whatever the mode below. This can be changed in the settings.', 'shawesome-robots-txt' ), 'warning', true );
 	}
 
 	// Yoast SEO removes this block wherever it is (same pattern as in its robots.txt integration).
@@ -1176,8 +1178,8 @@ function shawesome_robots_txt_render_editor( $site_id, $updated = '' ) {
 					</fieldset>
 				</section>
 
-				<p class="shrt-blocked-note"<?php echo 'block' === $mode ? '' : ' hidden'; ?>><?php esc_html_e( '"Blocking" mode: all crawlers are blocked from all paths. The options below are kept, but not delivered.', 'shawesome-robots-txt' ); ?></p>
-				<div class="shrt-blockable"<?php echo 'block' === $mode ? ' inert' : ''; ?>>
+				<p class="shrt-blocked-note"<?php echo 'block' === $mode || $hidden ? '' : ' hidden'; ?>><?php esc_html_e( '"Blocking" mode: all crawlers are blocked from all paths. The options below are kept, but not delivered.', 'shawesome-robots-txt' ); ?></p>
+				<div class="shrt-blockable"<?php echo 'block' === $mode || $hidden ? ' inert' : ''; ?>>
 				<section class="shrt-card">
 					<header class="shrt-card__head">
 						<div class="shrt-card__title">
@@ -1577,7 +1579,10 @@ function shawesome_robots_txt_render_sites() {
 								$mode = shawesome_robots_txt_site_mode( $site_id );
 								/* translators: %s: name of the default mode */
 								$text = '' === $mode ? sprintf( __( '%s (default)', 'shawesome-robots-txt' ), shawesome_robots_txt_mode_label( $settings['mode'] ) ) : shawesome_robots_txt_mode_label( $mode );
-								echo '<span class="shrt-mode-badge' . ( 'block' === shawesome_robots_txt_mode( $site_id ) ? ' is-block' : '' ) . '">' . esc_html( $text ) . '</span>';
+								if ( shawesome_robots_txt_hidden_blocked( $site_id ) ) {
+									$text = __( 'Blocking (hidden site)', 'shawesome-robots-txt' );
+								}
+								echo '<span class="shrt-mode-badge' . ( 'block' === shawesome_robots_txt_mode( $site_id ) || shawesome_robots_txt_hidden_blocked( $site_id ) ? ' is-block' : '' ) . '">' . esc_html( $text ) . '</span>';
 							}
 							?>
 						</td>
@@ -1602,8 +1607,8 @@ function shawesome_robots_txt_render_sites() {
 									/* translators: %s: names of the active SEO plugins */
 									echo '<span class="shrt-sub">' . esc_html( $seo ? sprintf( __( 'WordPress + %s', 'shawesome-robots-txt' ), wp_sprintf( '%l', $seo ) ) : __( 'WordPress', 'shawesome-robots-txt' ) ) . '</span>';
 								}
-								if ( $settings['respect_public'] && ! shawesome_robots_txt_is_public( $site_id ) && null !== $resolved['source'] ) {
-									echo '<span class="shrt-sub">' . esc_html__( 'Ignored – site hidden from search engines', 'shawesome-robots-txt' ) . '</span>';
+								if ( shawesome_robots_txt_hidden_blocked( $site_id ) ) {
+									echo '<span class="shrt-sub">' . esc_html__( 'Not delivered – site hidden from search engines', 'shawesome-robots-txt' ) . '</span>';
 								}
 							}
 							?>

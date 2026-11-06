@@ -26,7 +26,7 @@ The domain with dots (`www.example.com.txt`) is accepted as an unambiguous alter
 - Per site: mode; *Crawlers* – Crawl-delay and crawlers to block one by one (AI training, AI search, user requests, SEO tools, web archives, social media, search engines); *Paths and files* – resources (CSS/JS, images, PDFs), WordPress cleanup, WooCommerce pages and the Sitemap line (added by default). A checked option always blocks or leaves out something.
 - Editor button for example rules, preview of the result and the live robots.txt side by side
 - A physical `robots.txt` in the web root is shown and can be renamed to `_old-robots.txt` (never deleted)
-- Sites set to "Discourage search engines" keep the WordPress default (can be switched off)
+- Sites set to "Discourage search engines" get "Blocking" – all crawlers blocked (can be switched off)
 
 ## Yoast SEO and All in One SEO
 

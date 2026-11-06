@@ -307,9 +307,9 @@
 		if ( 'live' === view ) {
 			output.appendChild( block( c.labels.live, '#8c8f94', null === data.live ? c.labels.liveError : data.live ) );
 			notes.push( c.labels.liveNote );
-		} else if ( 'block' === mode() ) {
+		} else if ( 'block' === mode() || data.hidden ) {
 			output.appendChild( block( c.labels.block, '#d63638', 'User-agent: *\nDisallow: /' ) );
-			notes.push( data.physical ? c.labels.fileNote : c.labels.blockNote );
+			notes.push( data.physical ? c.labels.fileNote : ( data.hidden ? c.labels.hiddenNote : c.labels.blockNote ) );
 		} else {
 			var added = addedBlock(),
 				rules = null !== data.file ? data.file : fields.content.value.trim();
@@ -369,7 +369,7 @@
 
 	// In "Blocking" mode the other options are kept, but greyed out and not usable.
 	function blocking() {
-		var blocked = 'block' === mode(),
+		var blocked = 'block' === mode() || data.hidden,
 			blockable = form.querySelector( '.shrt-blockable' );
 		blockable.inert = blocked;
 		blockable.toggleAttribute( 'inert', blocked );

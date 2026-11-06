@@ -81,7 +81,7 @@ If a `robots.txt` file exists in the web root, the web server delivers it and Wo
 
 **Search engine visibility**
 
-Sites set to "Discourage search engines from indexing this site" keep the WordPress default instead of the custom robots.txt, so a staging site does not deliver the rules of production – even if the database was copied from there. This can be switched off.
+Sites set to "Discourage search engines from indexing this site" get "Blocking": all crawlers are blocked from all paths, whatever their mode – so a staging site stays out of search engines, even if the database was copied from production. WordPress itself no longer blocks such sites in its robots.txt, and SEO plugins may even allow everything. This can be switched off in the settings.
 
 **Notes**
 
