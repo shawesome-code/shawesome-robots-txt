@@ -47,7 +47,7 @@ The default mode is set in the settings; each site can choose its own in its edi
 
 ## Requirements
 
-- WordPress 7.1+ (single site or multisite)
+- WordPress 6.4+ (single site or multisite)
 - PHP 7.4+
 
 The interface is in English. Translations will come from [translate.wordpress.org](https://translate.wordpress.org/) once the plugin is listed in the directory.

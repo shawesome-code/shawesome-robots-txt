@@ -4,7 +4,7 @@
  * Plugin URI:          https://github.com/shawesome-code/shawesome-robots-txt
  * Description:         Its own robots.txt for a single site or for every site of a multisite network – edited in the admin, or deployed as a file to /wp-content/shawesome-robots-txt/ (e.g. www.example.com → www-example-com.txt), which takes precedence.
  * Version:             1.0.0
- * Requires at least:   7.1
+ * Requires at least:   6.4
  * Requires PHP:        7.4
  * Author:              shawesome
  * Author URI:          https://shawesome.de/

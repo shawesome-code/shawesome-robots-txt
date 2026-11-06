@@ -1,7 +1,7 @@
 === shawesome robots.txt – Per-Site Rules for Single Sites and Multisite ===
 Contributors: shawesome
 Tags: robots.txt, multisite, seo, network, crawler
-Requires at least: 7.1
+Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
 Stable tag: 1.0.0
