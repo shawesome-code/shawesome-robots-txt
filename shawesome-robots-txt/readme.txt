@@ -46,7 +46,9 @@ A plain text file in `/wp-content/shawesome-robots-txt/` overrides the database 
 * `www.example.com` → `www-example-com.txt`
 * `shop.example.com` → `shop-example-com.txt`
 
-As an unambiguous alternative, the domain with dots is accepted as well (`www.example.com.txt`); the hyphenated name takes precedence. While a file exists, the editor shows its content read-only and offers to copy it into the database.
+As an unambiguous alternative, the domain with dots is accepted as well (`www.example.com.txt`); the hyphenated name takes precedence. While a file exists, the editor shows its content and the rules stored in the database read-only and offers to copy the file into the database; mode and options can still be changed. The switch "Ignore the override file" in the editor delivers the database rules instead, e.g. while a deployment cannot remove the file; it stays on if the file is deployed again. An empty file (or one with only whitespace) stands for the WordPress default, even if the site has rules in the database; the crawler options are still added.
+
+Override files can be read by anyone who knows their address, like the robots.txt itself. If WordPress can write there, the plugin creates the directory with an empty `index.php`, so that a web server with directory listing does not show the file names (and with them the domains of a network). To keep the files out of the web root, set `SHAWESOME_ROBOTS_TXT_DIR` to a directory outside of it.
 
 **Which sites get their own robots.txt**
 
@@ -95,7 +97,7 @@ Sites set to "Discourage search engines from indexing this site" get "Blocking":
 * Constant `SHAWESOME_ROBOTS_TXT_DIR` or filter `shawesome_robots_txt_dir` – change the directory for override files.
 * Filter `shawesome_robots_txt_candidate_files` – change the candidate file paths for a domain.
 * Filter `shawesome_robots_txt_priority` – change the priority of the `robots_txt` filter.
-* Content, mode, status and the options per site are stored in the site options `shawesome_robots_txt_content`, `shawesome_robots_txt_mode`, `shawesome_robots_txt_status` and `shawesome_robots_txt_rules` (not autoloaded).
+* Content, mode, status, the options and the switch "Ignore the override file" per site are stored in the site options `shawesome_robots_txt_content`, `shawesome_robots_txt_mode`, `shawesome_robots_txt_status`, `shawesome_robots_txt_rules` and `shawesome_robots_txt_ignore_file` (not autoloaded).
 * All callbacks are named functions and can be removed with `remove_filter()`.
 
 == Installation ==
@@ -113,7 +115,7 @@ Check on the robots.txt tab that there is no physical `robots.txt` in the web ro
 
 = I changed the content in the editor, but the old one is still delivered. =
 
-A file in `/wp-content/shawesome-robots-txt/` overrides the database content. Delete the file – or copy it into the database first with the button in the editor.
+A file in `/wp-content/shawesome-robots-txt/` overrides the database content. Delete the file, copy it into the database first with the button in the editor, or switch on "Ignore the override file" in the editor.
 
 = Yoast SEO or All in One SEO changes my robots.txt. =
 

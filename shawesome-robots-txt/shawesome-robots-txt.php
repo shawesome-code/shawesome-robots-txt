@@ -30,6 +30,7 @@ define( 'SHAWESOME_ROBOTS_TXT_CONTENT_OPTION', 'shawesome_robots_txt_content' );
 define( 'SHAWESOME_ROBOTS_TXT_MODE_OPTION', 'shawesome_robots_txt_mode' );
 define( 'SHAWESOME_ROBOTS_TXT_STATUS_OPTION', 'shawesome_robots_txt_status' );
 define( 'SHAWESOME_ROBOTS_TXT_RULES_OPTION', 'shawesome_robots_txt_rules' );
+define( 'SHAWESOME_ROBOTS_TXT_IGNORE_FILE_OPTION', 'shawesome_robots_txt_ignore_file' );
 
 /**
  * Option of a site (the current site on a single site).
@@ -436,6 +437,41 @@ function shawesome_robots_txt_dir() {
 }
 
 /**
+ * Create the directory for override files with an empty index.php, so that
+ * a web server with directory listing does not show the file names (and
+ * with them the domains of a network). Only if WordPress can write there
+ * without asking for credentials; otherwise nothing happens. Runs on
+ * activation and when the plugin page is opened, as activation does not run
+ * on updates or after SHAWESOME_ROBOTS_TXT_DIR has changed.
+ */
+function shawesome_robots_txt_create_dir() {
+	$dir = shawesome_robots_txt_dir();
+	if ( is_file( $dir . 'index.php' ) ) {
+		return;
+	}
+
+	if ( ! function_exists( 'get_filesystem_method' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+	}
+
+	// The directory itself if it exists, otherwise the closest existing parent.
+	$check = untrailingslashit( $dir );
+	while ( ! is_dir( $check ) && dirname( $check ) !== $check ) {
+		$check = dirname( $check );
+	}
+
+	global $wp_filesystem;
+	if ( 'direct' !== get_filesystem_method( array(), $check ) || ! WP_Filesystem() ) {
+		return;
+	}
+
+	if ( wp_mkdir_p( $dir ) ) {
+		$wp_filesystem->put_contents( $dir . 'index.php', "<?php\n// Silence is golden.\n", FS_CHMOD_FILE );
+	}
+}
+register_activation_hook( __FILE__, 'shawesome_robots_txt_create_dir' );
+
+/**
  * Host of a site's home URL, e.g. www.example.com. Also correct for sites
  * with a mapped domain in a network.
  *
@@ -647,6 +683,16 @@ function shawesome_robots_txt_read_file( $file ) {
 }
 
 /**
+ * Whether a site ignores its override file and uses its database content.
+ *
+ * @param int $site_id Site ID (ignored on a single site).
+ * @return bool
+ */
+function shawesome_robots_txt_ignores_file( $site_id ) {
+	return (bool) shawesome_robots_txt_get_site_option( $site_id, SHAWESOME_ROBOTS_TXT_IGNORE_FILE_OPTION );
+}
+
+/**
  * Content of the robots.txt stored in the database for a site.
  *
  * @param int $site_id Site ID (ignored on a single site).
@@ -674,21 +720,24 @@ function shawesome_robots_txt_set_db_content( $site_id, $content ) {
 
 /**
  * Where the robots.txt of a site comes from. A file takes precedence over
- * the database, so that deployments keep control.
+ * the database, so that deployments keep control. An empty file (only
+ * whitespace) stands for the WordPress default, even if the site has
+ * database content. A site can ignore its file (switch in the editor).
  *
- * @param int $site_id Site ID (ignored on a single site).
+ * @param int  $site_id     Site ID (ignored on a single site).
+ * @param bool $use_ignore  Whether to skip the file of a site that ignores it; false to look at the file anyway.
  * @return array{source: string|null, file: string|null, content: string|null}
- *               source is 'file', 'db' or null (WordPress default).
+ *               source is 'file', 'db' or null (WordPress default); content is '' for an empty file.
  */
-function shawesome_robots_txt_resolve( $site_id ) {
-	$file = shawesome_robots_txt_find_file( shawesome_robots_txt_host( $site_id ) );
+function shawesome_robots_txt_resolve( $site_id, $use_ignore = true ) {
+	$file = $use_ignore && shawesome_robots_txt_ignores_file( $site_id ) ? null : shawesome_robots_txt_find_file( shawesome_robots_txt_host( $site_id ) );
 	if ( null !== $file ) {
 		$content = shawesome_robots_txt_read_file( $file );
 		if ( null !== $content ) {
 			return array(
 				'source'  => 'file',
 				'file'    => $file,
-				'content' => $content,
+				'content' => '' === trim( $content ) ? '' : $content,
 			);
 		}
 	}
@@ -751,8 +800,8 @@ function shawesome_robots_txt_filter_robots_txt( $output ) {
 
 	$resolved = shawesome_robots_txt_resolve( $site_id );
 
-	// No file and no database content -> keep the default behavior.
-	return null === $resolved['content'] ? $output : $resolved['content'];
+	// No file and no database content, or an empty file -> keep the default behavior.
+	return null === $resolved['content'] || '' === $resolved['content'] ? $output : $resolved['content'];
 }
 
 /**

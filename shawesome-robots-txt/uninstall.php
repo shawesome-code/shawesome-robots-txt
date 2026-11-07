@@ -11,7 +11,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	exit;
 }
 
-$shawesome_robots_txt_options = array( 'shawesome_robots_txt_content', 'shawesome_robots_txt_mode', 'shawesome_robots_txt_status', 'shawesome_robots_txt_rules' );
+$shawesome_robots_txt_options = array( 'shawesome_robots_txt_content', 'shawesome_robots_txt_mode', 'shawesome_robots_txt_status', 'shawesome_robots_txt_rules', 'shawesome_robots_txt_ignore_file' );
 
 delete_site_option( 'shawesome_robots_txt_settings' );
 

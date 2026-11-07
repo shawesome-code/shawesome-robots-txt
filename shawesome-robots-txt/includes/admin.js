@@ -37,6 +37,29 @@
 		field.focus();
 	} );
 
+	// Buttons that ask before their form is sent (data-shrt-confirm holds the question).
+	document.addEventListener( 'click', function ( e ) {
+		var button = e.target.closest( '[data-shrt-confirm]' );
+		if ( button && ! window.confirm( button.getAttribute( 'data-shrt-confirm' ) ) ) {
+			e.preventDefault();
+		}
+	} );
+
+	// Read-only rules while an override file exists: tabs for the file and the database rules.
+	document.addEventListener( 'click', function ( e ) {
+		var tab = e.target.closest( '[data-shrt-tab]' ),
+			card = tab && tab.closest( '.shrt-card' );
+		if ( ! card ) {
+			return;
+		}
+		all( '[data-shrt-tab]', card ).forEach( function ( other ) {
+			other.setAttribute( 'aria-pressed', other === tab ? 'true' : 'false' );
+		} );
+		all( '[data-shrt-panel]', card ).forEach( function ( panel ) {
+			panel.hidden = panel.getAttribute( 'data-shrt-panel' ) !== tab.getAttribute( 'data-shrt-tab' );
+		} );
+	} );
+
 	// Overview: counts and visibility of the rows.
 	var filter = 'all',
 		search = document.getElementById( 'shrt-search' );
@@ -278,8 +301,14 @@
 		return checked && checked.value ? checked.value : data.defaultMode;
 	}
 
+	// The override file is delivered unless the site ignores it (switch, also before saving).
+	function fileActive() {
+		return null !== data.file && ! ( fields.ignore_file && fields.ignore_file.checked );
+	}
+
 	function rulesText() {
-		return null !== data.file ? data.file : fields.content.value.trim();
+		var rules = fields.content || form.querySelector( '[data-shrt-panel="db"]' );
+		return fileActive() ? data.file : ( rules ? rules.value.trim() : '' );
 	}
 
 	// The added block comes from the server (shawesome_robots_txt_added_block()), so it matches the robots.txt.
@@ -353,7 +382,7 @@
 			if ( 'base' === mode() && data.seo ) {
 				output.appendChild( block( format( c.labels.seo, data.seo ), '#dcdcde', c.labels.seoText ) );
 			}
-			output.appendChild( block( null !== data.file ? c.labels.file : c.labels.rules, '#2271b1', rules || c.labels.empty ) );
+			output.appendChild( block( fileActive() ? c.labels.file : c.labels.rules, '#2271b1', rules || c.labels.empty ) );
 			if ( added && ! data.hidden ) {
 				output.appendChild( block( c.labels.options, '#dba617', added ) );
 			}
