@@ -707,7 +707,7 @@ msgid "Do not add the sitemap"
 msgstr ""
 
 #: includes/admin.php:1321
-msgid "The sitemap of Yoast SEO, Rank Math or All in One SEO if active, otherwise the one of WordPress. It is not added twice if the robots.txt already links it."
+msgid "The sitemap of WordPress, or the one of Yoast SEO, Rank Math or All in One SEO while it replaces the WordPress sitemap. It is not added twice if the robots.txt already links it."
 msgstr ""
 
 #: includes/admin.php:1332 includes/admin.php:1333

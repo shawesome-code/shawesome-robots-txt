@@ -304,14 +304,22 @@ function shawesome_robots_txt_plugin_active( $site_id, $file ) {
 }
 
 /**
- * URL of the sitemap of a site: the one of Yoast SEO, Rank Math or All in
- * One SEO if active, otherwise the sitemap of WordPress.
+ * URL of the sitemap of a site. Yoast SEO, Rank Math and All in One SEO
+ * turn off the sitemap of WordPress while their own sitemap is on, so the
+ * WordPress sitemap is used whenever it is enabled (it then exists, also if
+ * an SEO plugin is active but its sitemap is off or not set up yet), and the
+ * sitemap of the active SEO plugin otherwise.
  *
  * @param int $site_id Site ID (ignored on a single site).
- * @return string URL, empty if the WordPress sitemap is disabled (e.g. on
- *                sites hidden from search engines).
+ * @return string URL, empty if neither applies (e.g. on sites hidden from
+ *                search engines without an SEO plugin).
  */
 function shawesome_robots_txt_sitemap_url( $site_id ) {
+	// Same default and filter as the sitemaps of WordPress use to decide whether they are enabled.
+	if ( apply_filters( 'wp_sitemaps_enabled', shawesome_robots_txt_is_public( $site_id ) ) ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core filter.
+		return get_home_url( $site_id, 'wp-sitemap.xml' );
+	}
+
 	if ( shawesome_robots_txt_plugin_active( $site_id, 'wordpress-seo/wp-seo.php' ) || shawesome_robots_txt_plugin_active( $site_id, 'seo-by-rank-math/rank-math.php' ) ) {
 		return get_home_url( $site_id, 'sitemap_index.xml' );
 	}
@@ -319,12 +327,7 @@ function shawesome_robots_txt_sitemap_url( $site_id ) {
 		return get_home_url( $site_id, 'sitemap.xml' );
 	}
 
-	// Same default and filter as the sitemaps of WordPress use to decide whether they are enabled.
-	if ( ! apply_filters( 'wp_sitemaps_enabled', shawesome_robots_txt_is_public( $site_id ) ) ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core filter.
-		return '';
-	}
-
-	return get_home_url( $site_id, 'wp-sitemap.xml' );
+	return '';
 }
 
 /**

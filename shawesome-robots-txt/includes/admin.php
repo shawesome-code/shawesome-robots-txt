@@ -1441,7 +1441,7 @@ function shawesome_robots_txt_render_editor( $site_id, $updated = '' ) {
 								<?php if ( '' !== $sitemap_url ) : ?>
 									<code><?php echo esc_html( $sitemap_url ); ?></code>
 								<?php endif; ?>
-								<p><?php esc_html_e( 'The sitemap of Yoast SEO, Rank Math or All in One SEO if active, otherwise the one of WordPress. It is not added twice if the robots.txt already links it.', 'shawesome-robots-txt' ); ?></p>
+								<p><?php esc_html_e( 'The sitemap of WordPress, or the one of Yoast SEO, Rank Math or All in One SEO while it replaces the WordPress sitemap. It is not added twice if the robots.txt already links it.', 'shawesome-robots-txt' ); ?></p>
 							</div>
 						</div>
 					</details>
