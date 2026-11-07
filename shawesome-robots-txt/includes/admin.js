@@ -93,7 +93,25 @@
 		search.addEventListener( 'input', applyFilter );
 	}
 
-	// Status: three requests at a time.
+	// Status: three requests at a time. If the first answers bring no response at all (no site
+	// reached yet), loopback requests are probably blocked: the rest is skipped and reported once.
+	var reached = false,
+		stopped = false,
+		notice = null;
+
+	function stop( element ) {
+		var text = document.createElement( 'p' );
+		stopped = true;
+		if ( notice ) {
+			notice.remove();
+		}
+		notice = document.createElement( 'div' );
+		notice.className = 'notice notice-error inline';
+		text.textContent = c.labels.loopback;
+		notice.appendChild( text );
+		( document.querySelector( '.shrt-table-wrap' ) || element ).before( notice );
+	}
+
 	function scan( element ) {
 		var body = new FormData();
 		body.append( 'action', 'shawesome_robots_txt_scan' );
@@ -112,25 +130,40 @@
 					throw new Error();
 				}
 				element.innerHTML = json.data.html; // Escaped on the server.
+				element.dispatchEvent( new CustomEvent( 'shrt:live', { bubbles: true, detail: json.data.live } ) );
 				var row = element.closest( '.shrt-site' );
 				if ( row ) {
 					row.className = 'shrt-site is-' + json.data.level;
 					row.setAttribute( 'data-level', json.data.level );
 					applyFilter();
 				}
+				return json.data;
 			} )
 			.catch( function () {
 				element.textContent = c.failed;
 			} )
-			.then( function () {
+			.then( function ( result ) {
 				element.removeAttribute( 'aria-busy' );
+				return result;
 			} );
 	}
 
 	function run( elements ) {
 		var i = 0;
+		stopped = false;
 		function next() {
-			return i < elements.length ? scan( elements[ i++ ] ).then( next ) : null;
+			if ( i >= elements.length || stopped ) {
+				return null;
+			}
+			var element = elements[ i++ ];
+			return scan( element ).then( function ( result ) {
+				if ( result && ! result.unreachable ) {
+					reached = true;
+				} else if ( result && ! reached && ! stopped && i < elements.length ) {
+					stop( element );
+				}
+				return next();
+			} );
 		}
 		return Promise.all( [ next(), next(), next() ] );
 	}
@@ -229,7 +262,12 @@
 		output = form.querySelector( '.shrt-output' ),
 		note = form.querySelector( '.shrt-output__note' ),
 		fields = form.elements,
-		view = 'preview';
+		view = 'preview',
+		added = data.added,
+		live, // Undefined until the status check returns.
+		previewKey = null,
+		previewTimer,
+		previewRequest = 0;
 
 	function format( text, number ) {
 		return text.replace( '%d', number ).replace( '%s', number );
@@ -240,50 +278,49 @@
 		return checked && checked.value ? checked.value : data.defaultMode;
 	}
 
-	function checked( name ) {
-		return all( 'input[name="' + name + '[]"]:checked', form ).map( function ( input ) {
-			return input.value;
-		} );
+	function rulesText() {
+		return null !== data.file ? data.file : fields.content.value.trim();
 	}
 
-	// Same order and lines as shawesome_robots_txt_added_block() in PHP.
-	function addedBlock() {
-		var tokens = [],
-			star = [],
-			parts = [];
+	// The added block comes from the server (shawesome_robots_txt_added_block()), so it matches the robots.txt.
+	function preview() {
+		var body = new FormData( form ),
+			request = ++previewRequest;
+		body.set( 'action', 'shawesome_robots_txt_preview' );
+		body.set( '_ajax_nonce', c.preview );
+		body.set( 'rules_text', rulesText() );
+		body.delete( 'content' );
 
-		if ( fields.crawl_delay_on.checked ) {
-			star.push( 'Crawl-delay: ' + Math.min( 60, Math.max( 1, parseInt( fields.crawl_delay.value, 10 ) || 10 ) ) );
-		}
-		checked( 'bots' ).forEach( function ( key ) {
-			if ( 1 === data.bots[ key ].length && '*' === data.bots[ key ][ 0 ] ) {
-				star.push( 'Disallow: /' );
-			} else {
-				tokens = tokens.concat( data.bots[ key ] );
-			}
-		} );
-		[ 'css_js', 'images', 'pdfs' ].forEach( function ( key ) {
-			if ( fields[ key ].checked ) {
-				star = star.concat( data.resources[ key ] );
-			}
-		} );
-		checked( 'cleanup' ).forEach( function ( key ) {
-			star = star.concat( data.cleanup[ key ] );
-		} );
-		checked( 'woo' ).forEach( function ( key ) {
-			star = star.concat( data.woo[ key ] || [] );
-		} );
+		fetch( c.url, { method: 'POST', body: body, credentials: 'same-origin' } )
+			.then( function ( response ) {
+				return response.json();
+			} )
+			.then( function ( json ) {
+				// Only the answer to the latest request counts.
+				if ( request === previewRequest && json && json.success ) {
+					added = json.data;
+					render();
+				}
+			} )
+			.catch( function () {} );
+	}
 
-		if ( tokens.length ) {
-			parts.push( 'User-agent: ' + tokens.join( '\nUser-agent: ' ) + '\nDisallow: /' );
+	// Ask for a new block when the options or the rules change, not on every keystroke.
+	function schedulePreview() {
+		var body = new FormData( form ),
+			key;
+		body.delete( 'content' );
+		key = new URLSearchParams( body ).toString() + '\n' + rulesText();
+		if ( null === previewKey ) {
+			previewKey = key; // State of the stored options, which data.added matches.
+			return;
 		}
-		if ( star.length ) {
-			parts.push( 'User-agent: *\n' + star.join( '\n' ) );
+		if ( key === previewKey ) {
+			return;
 		}
-		if ( ! fields.no_sitemap.checked ) {
-			parts.push( 'Sitemap: ' + data.sitemapUrl );
-		}
-		return parts.length ? '# Added by shawesome robots.txt\n' + parts.join( '\n\n' ) : '';
+		previewKey = key;
+		clearTimeout( previewTimer );
+		previewTimer = setTimeout( preview, 300 );
 	}
 
 	function block( label, color, text ) {
@@ -305,14 +342,13 @@
 		output.textContent = '';
 
 		if ( 'live' === view ) {
-			output.appendChild( block( c.labels.live, '#8c8f94', null === data.live ? c.labels.liveError : data.live ) );
+			output.appendChild( block( c.labels.live, '#8c8f94', undefined === live ? c.scanning : ( null === live ? c.labels.liveError : live ) ) );
 			notes.push( c.labels.liveNote );
 		} else if ( 'block' === mode() || data.hidden ) {
 			output.appendChild( block( c.labels.block, '#d63638', 'User-agent: *\nDisallow: /' ) );
 			notes.push( data.physical ? c.labels.fileNote : ( data.hidden ? c.labels.hiddenNote : c.labels.blockNote ) );
 		} else {
-			var added = addedBlock(),
-				rules = null !== data.file ? data.file : fields.content.value.trim();
+			var rules = rulesText();
 
 			if ( 'base' === mode() && data.seo ) {
 				output.appendChild( block( format( c.labels.seo, data.seo ), '#dcdcde', c.labels.seoText ) );
@@ -379,6 +415,12 @@
 	form.addEventListener( 'shrt:change', function () {
 		blocking();
 		summaries();
+		schedulePreview();
+		render();
+	} );
+
+	form.addEventListener( 'shrt:live', function ( e ) {
+		live = e.detail;
 		render();
 	} );
 

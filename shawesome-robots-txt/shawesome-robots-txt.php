@@ -34,13 +34,13 @@ define( 'SHAWESOME_ROBOTS_TXT_RULES_OPTION', 'shawesome_robots_txt_rules' );
 /**
  * Option of a site (the current site on a single site).
  *
- * @param int    $site_id Site ID (ignored on a single site).
- * @param string $name    Option name.
- * @param mixed  $default Value if the option does not exist.
+ * @param int    $site_id  Site ID (ignored on a single site).
+ * @param string $name     Option name.
+ * @param mixed  $fallback Value if the option does not exist.
  * @return mixed
  */
-function shawesome_robots_txt_get_site_option( $site_id, $name, $default = '' ) {
-	return is_multisite() ? get_blog_option( $site_id, $name, $default ) : get_option( $name, $default );
+function shawesome_robots_txt_get_site_option( $site_id, $name, $fallback = '' ) {
+	return is_multisite() ? get_blog_option( $site_id, $name, $fallback ) : get_option( $name, $fallback );
 }
 
 /**
@@ -107,8 +107,19 @@ function shawesome_robots_txt_mode( $site_id ) {
  * @return array{crawl_delay: int, css_js: bool, images: bool, pdfs: bool, bots: string[], cleanup: string[], woo: string[], no_sitemap: bool}
  */
 function shawesome_robots_txt_site_rules( $site_id ) {
+	return shawesome_robots_txt_parse_rules( shawesome_robots_txt_get_site_option( $site_id, SHAWESOME_ROBOTS_TXT_RULES_OPTION, array() ) );
+}
+
+/**
+ * Options for added rules, merged with the defaults and validated (see
+ * shawesome_robots_txt_site_rules()).
+ *
+ * @param mixed $rules Stored or posted options.
+ * @return array{crawl_delay: int, css_js: bool, images: bool, pdfs: bool, bots: string[], cleanup: string[], woo: string[], no_sitemap: bool}
+ */
+function shawesome_robots_txt_parse_rules( $rules ) {
 	$rules = wp_parse_args(
-		(array) shawesome_robots_txt_get_site_option( $site_id, SHAWESOME_ROBOTS_TXT_RULES_OPTION, array() ),
+		(array) $rules,
 		array(
 			'crawl_delay' => 0,
 			'css_js'      => false,
@@ -145,12 +156,12 @@ function shawesome_robots_txt_site_rules( $site_id ) {
 function shawesome_robots_txt_bots() {
 	return array(
 		'ai_training' => array(
-			'gptbot'      => array( 'OpenAI', array( 'GPTBot' ) ),
-			'claudebot'   => array( 'Anthropic', array( 'ClaudeBot' ) ),
-			'google_ext'  => array( 'Google (Gemini)', array( 'Google-Extended' ) ),
-			'apple_ext'   => array( 'Apple', array( 'Applebot-Extended' ) ),
-			'meta_agent'  => array( 'Meta', array( 'meta-externalagent' ) ),
-			'ccbot'       => array( 'Common Crawl', array( 'CCBot' ) ),
+			'gptbot'     => array( 'OpenAI', array( 'GPTBot' ) ),
+			'claudebot'  => array( 'Anthropic', array( 'ClaudeBot' ) ),
+			'google_ext' => array( 'Google (Gemini)', array( 'Google-Extended' ) ),
+			'apple_ext'  => array( 'Apple', array( 'Applebot-Extended' ) ),
+			'meta_agent' => array( 'Meta', array( 'meta-externalagent' ) ),
+			'ccbot'      => array( 'Common Crawl', array( 'CCBot' ) ),
 		),
 		'ai_search'   => array(
 			'oai_search'    => array( 'OpenAI', array( 'OAI-SearchBot' ) ),
@@ -279,7 +290,8 @@ function shawesome_robots_txt_plugin_active( $site_id, $file ) {
  * One SEO if active, otherwise the sitemap of WordPress.
  *
  * @param int $site_id Site ID (ignored on a single site).
- * @return string
+ * @return string URL, empty if the WordPress sitemap is disabled (e.g. on
+ *                sites hidden from search engines).
  */
 function shawesome_robots_txt_sitemap_url( $site_id ) {
 	if ( shawesome_robots_txt_plugin_active( $site_id, 'wordpress-seo/wp-seo.php' ) || shawesome_robots_txt_plugin_active( $site_id, 'seo-by-rank-math/rank-math.php' ) ) {
@@ -287,6 +299,11 @@ function shawesome_robots_txt_sitemap_url( $site_id ) {
 	}
 	if ( shawesome_robots_txt_plugin_active( $site_id, 'all-in-one-seo-pack/all_in_one_seo_pack.php' ) || shawesome_robots_txt_plugin_active( $site_id, 'all-in-one-seo-pack-pro/all_in_one_seo_pack.php' ) ) {
 		return get_home_url( $site_id, 'sitemap.xml' );
+	}
+
+	// Same default and filter as the sitemaps of WordPress use to decide whether they are enabled.
+	if ( ! apply_filters( 'wp_sitemaps_enabled', shawesome_robots_txt_is_public( $site_id ) ) ) { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core filter.
+		return '';
 	}
 
 	return get_home_url( $site_id, 'wp-sitemap.xml' );
@@ -297,12 +314,13 @@ function shawesome_robots_txt_sitemap_url( $site_id ) {
  * crawlers, a group for all crawlers (Crawl-delay, blocked resources and
  * paths) and the Sitemap line.
  *
- * @param int    $site_id Site ID (ignored on a single site).
- * @param string $output  robots.txt so far; a sitemap already in it is not added again.
+ * @param int        $site_id Site ID (ignored on a single site).
+ * @param string     $output  The robots.txt so far; a sitemap already in it is not added again.
+ * @param array|null $rules   Options as returned by shawesome_robots_txt_site_rules(), the stored ones if null.
  * @return string Block, empty if there is nothing to add.
  */
-function shawesome_robots_txt_added_block( $site_id, $output = '' ) {
-	$rules  = shawesome_robots_txt_site_rules( $site_id );
+function shawesome_robots_txt_added_block( $site_id, $output = '', $rules = null ) {
+	$rules  = null === $rules ? shawesome_robots_txt_site_rules( $site_id ) : $rules;
 	$index  = shawesome_robots_txt_bot_index();
 	$tokens = array();
 	$star   = array();
@@ -342,7 +360,7 @@ function shawesome_robots_txt_added_block( $site_id, $output = '' ) {
 	}
 	if ( ! $rules['no_sitemap'] ) {
 		$url = shawesome_robots_txt_sitemap_url( $site_id );
-		if ( false === stripos( $output, $url ) ) {
+		if ( '' !== $url && false === stripos( $output, $url ) ) {
 			$parts[] = 'Sitemap: ' . $url;
 		}
 	}
@@ -539,7 +557,10 @@ function shawesome_robots_txt_path_rules( $host ) {
 
 	foreach ( shawesome_robots_txt_path_sites( $host ) as $site ) {
 		if ( '1' === (string) $site->public ) {
-			$sitemaps[] = 'Sitemap: ' . set_url_scheme( 'http://' . $site->domain . $site->path . 'wp-sitemap.xml' );
+			$url = shawesome_robots_txt_sitemap_url( (int) $site->blog_id );
+			if ( '' !== $url ) {
+				$sitemaps[] = 'Sitemap: ' . $url;
+			}
 		} else {
 			$disallow[] = 'Disallow: ' . $site->path;
 		}
@@ -626,7 +647,7 @@ function shawesome_robots_txt_read_file( $file ) {
 }
 
 /**
- * robots.txt content stored in the database for a site.
+ * Content of the robots.txt stored in the database for a site.
  *
  * @param int $site_id Site ID (ignored on a single site).
  * @return string Content, empty if none.
@@ -644,8 +665,11 @@ function shawesome_robots_txt_get_db_content( $site_id ) {
  */
 function shawesome_robots_txt_set_db_content( $site_id, $content ) {
 	$content = shawesome_robots_txt_normalize( (string) $content );
+	if ( '' === trim( $content ) ) {
+		$content = '';
+	}
 
-	shawesome_robots_txt_set_site_option( $site_id, SHAWESOME_ROBOTS_TXT_CONTENT_OPTION, '' === trim( $content ) ? '' : $content );
+	shawesome_robots_txt_set_site_option( $site_id, SHAWESOME_ROBOTS_TXT_CONTENT_OPTION, $content );
 }
 
 /**

@@ -35,7 +35,7 @@ The editor of each site also sets the mode (see below) and two groups of options
 * resources and assets: CSS and JavaScript files, images and PDF files are allowed unless checked
 * WordPress cleanup: internal search results, reply links of comments, feeds of posts and archives
 * WooCommerce (when active): cart, checkout, my account and "add to cart" links
-* the sitemap: by default, a Sitemap line for the sitemap of Yoast SEO, Rank Math, All in One SEO or WordPress is added, unless the robots.txt already links it; it can be left out
+* the sitemap: by default, a Sitemap line for the sitemap of Yoast SEO, Rank Math, All in One SEO or WordPress (if its sitemaps are enabled) is added, unless the robots.txt already links it; it can be left out
 
 These lines are added at the end of the robots.txt, in both modes: blocked crawlers as a group of their own, everything else as a group for all crawlers (`User-agent: *`), which crawlers with a group of their own do not read. Like all of robots.txt, this only works with crawlers that follow it.
 
@@ -87,7 +87,8 @@ Sites set to "Discourage search engines from indexing this site" get "Blocking":
 
 * A UTF-8 BOM is stripped and line endings are normalized.
 * In a network, the plugin is network-activated and the settings apply to all sites.
-* The status is requested from the site itself (a loopback request). Some servers block such requests; the status then says so.
+* The status is requested from the site itself (a loopback request). Some servers block such requests; the status then says so, and checking all sites stops after the first ones.
+* Tested with small networks; larger networks have not been tested yet. The status check requests the robots.txt of every site, which takes longer in large networks.
 
 **For developers**
 

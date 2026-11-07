@@ -134,6 +134,10 @@ msgstr ""
 msgid "Unsaved changes"
 msgstr ""
 
+#: includes/admin.php:171
+msgid "The server could not request its own robots.txt (loopback request), so the remaining sites were not checked. Some servers block such requests."
+msgstr ""
+
 #: includes/admin.php:185 includes/admin.php:512
 msgid "Settings"
 msgstr ""
