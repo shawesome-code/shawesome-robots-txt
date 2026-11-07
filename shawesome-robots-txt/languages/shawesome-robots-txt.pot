@@ -1022,3 +1022,11 @@ msgstr ""
 #: includes/admin.php:1732
 msgid "Override file ignored"
 msgstr ""
+
+#: includes/admin.php:1424
+msgid "Log and file folders"
+msgstr ""
+
+#: includes/admin.php:1424
+msgid "Folders for logs and downloadable files in the uploads folder. Tells crawlers there is nothing to find; it does not protect the files."
+msgstr ""

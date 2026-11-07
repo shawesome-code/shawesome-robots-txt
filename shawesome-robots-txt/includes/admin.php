@@ -673,7 +673,7 @@ function shawesome_robots_txt_posted_rules() {
 			'pdfs'        => empty( $_POST['pdfs'] ) ? null : 1,
 			'bots'        => array_values( array_intersect( $keys( 'bots' ), array_keys( shawesome_robots_txt_bot_index() ) ) ),
 			'cleanup'     => array_values( array_intersect( $keys( 'cleanup' ), array_keys( shawesome_robots_txt_cleanup_lines() ) ) ),
-			'woo'         => array_values( array_intersect( $keys( 'woo' ), array( 'cart', 'checkout', 'account', 'add_to_cart' ) ) ),
+			'woo'         => array_values( array_intersect( $keys( 'woo' ), shawesome_robots_txt_woo_keys() ) ),
 			'no_sitemap'  => empty( $_POST['no_sitemap'] ) ? null : 1,
 		),
 		function ( $value, $key ) {
@@ -1243,7 +1243,7 @@ function shawesome_robots_txt_render_editor( $site_id, $updated = '' ) {
 				<h2><?php echo esc_html( shawesome_robots_txt_host( $site_id ) ); ?></h2>
 			</div>
 			<div class="shrt-head__actions">
-				<div class="shrt-head__status" data-shrt-status="<?php echo esc_attr( (string) $site_id ); ?>" data-format="pills" data-outdated>
+				<div class="shrt-head__status" data-shrt-status="<?php echo esc_attr( (string) $site_id ); ?>" data-host="<?php echo esc_attr( shawesome_robots_txt_host( $site_id ) ); ?>" data-format="pills" data-outdated>
 					<?php echo shawesome_robots_txt_status_html( shawesome_robots_txt_status_items( $site_id, $status ), $status, 'pills' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in shawesome_robots_txt_status_html(). ?>
 				</div>
 				<a class="button" href="<?php echo esc_url( get_home_url( $site_id, 'robots.txt' ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Open live robots.txt', 'shawesome-robots-txt' ); ?> <span aria-hidden="true">&#8599;</span><span class="screen-reader-text"><?php esc_html_e( '(opens in a new tab)', 'shawesome-robots-txt' ); ?></span></a>
@@ -1421,6 +1421,7 @@ function shawesome_robots_txt_render_editor( $site_id, $updated = '' ) {
 								'checkout'    => array( __( 'Checkout', 'shawesome-robots-txt' ), '', 'rec' ),
 								'account'     => array( __( 'My account', 'shawesome-robots-txt' ), '', 'rec' ),
 								'add_to_cart' => array( __( '"Add to cart" links', 'shawesome-robots-txt' ), __( 'Links with ?add-to-cart= create a new cart for every crawler request.', 'shawesome-robots-txt' ), 'rec' ),
+								'uploads'     => array( __( 'Log and file folders', 'shawesome-robots-txt' ), __( 'Folders for logs and downloadable files in the uploads folder. Tells crawlers there is nothing to find; it does not protect the files.', 'shawesome-robots-txt' ), 'rec' ),
 							),
 							shawesome_robots_txt_woo_lines( $site_id ),
 							$rules['woo']
@@ -1739,7 +1740,7 @@ function shawesome_robots_txt_render_sites() {
 						</td>
 						<td><?php echo $seo ? esc_html( implode( ', ', $seo ) ) : '–'; ?></td>
 						<?php if ( $row['own'] ) : ?>
-							<td class="shrt-status" data-shrt-status="<?php echo esc_attr( (string) $site_id ); ?>"<?php echo $check_all || shawesome_robots_txt_status_outdated( $row['status'] ) ? ' data-outdated' : ''; ?>>
+							<td class="shrt-status" data-shrt-status="<?php echo esc_attr( (string) $site_id ); ?>" data-host="<?php echo esc_attr( $row['host'] ); ?>"<?php echo $check_all || shawesome_robots_txt_status_outdated( $row['status'] ) ? ' data-outdated' : ''; ?>>
 								<?php echo shawesome_robots_txt_status_html( $row['items'], $row['status'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in shawesome_robots_txt_status_html(). ?>
 							</td>
 						<?php else : ?>

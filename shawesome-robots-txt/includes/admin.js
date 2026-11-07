@@ -116,10 +116,10 @@
 		search.addEventListener( 'input', applyFilter );
 	}
 
-	// Status: three requests at a time. If the first answers bring no response at all (no site
-	// reached yet), loopback requests are probably blocked: the rest is skipped and reported once.
-	var reached = false,
-		stopped = false,
+	// Status: three requests at a time. If the server gets no response from the host this page is
+	// open on, loopback requests are blocked: the rest is skipped and reported once. Other sites
+	// that cannot be reached (e.g. a domain that does not resolve) do not stop the check.
+	var stopped = false,
 		notice = null;
 
 	function stop( element ) {
@@ -180,9 +180,7 @@
 			}
 			var element = elements[ i++ ];
 			return scan( element ).then( function ( result ) {
-				if ( result && ! result.unreachable ) {
-					reached = true;
-				} else if ( result && ! reached && ! stopped && i < elements.length ) {
+				if ( result && result.unreachable && ! stopped && i < elements.length && element.getAttribute( 'data-host' ) === window.location.hostname ) {
 					stop( element );
 				}
 				return next();

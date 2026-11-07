@@ -140,7 +140,7 @@ function shawesome_robots_txt_parse_rules( $rules ) {
 		'pdfs'        => (bool) $rules['pdfs'],
 		'bots'        => array_values( array_intersect( (array) $rules['bots'], array_keys( shawesome_robots_txt_bot_index() ) ) ),
 		'cleanup'     => array_values( array_intersect( (array) $rules['cleanup'], array_keys( shawesome_robots_txt_cleanup_lines() ) ) ),
-		'woo'         => array_values( array_intersect( (array) $rules['woo'], array( 'cart', 'checkout', 'account', 'add_to_cart' ) ) ),
+		'woo'         => array_values( array_intersect( (array) $rules['woo'], shawesome_robots_txt_woo_keys() ) ),
 		'no_sitemap'  => (bool) $rules['no_sitemap'],
 	);
 }
@@ -240,8 +240,19 @@ function shawesome_robots_txt_cleanup_lines() {
 }
 
 /**
+ * Keys of the WooCommerce options, in the order of shawesome_robots_txt_woo_lines().
+ *
+ * @return string[]
+ */
+function shawesome_robots_txt_woo_keys() {
+	return array( 'cart', 'checkout', 'account', 'add_to_cart', 'uploads' );
+}
+
+/**
  * Disallow lines for the WooCommerce pages of a site, from the pages set in
- * WooCommerce (the usual slugs if none is set).
+ * WooCommerce (the usual slugs if none is set), and for the directories
+ * WooCommerce keeps in the uploads folder (logs, transient and downloadable
+ * files; WooCommerce adds the same lines to the WordPress default).
  *
  * @param int $site_id Site ID (ignored on a single site).
  * @return array<string, string[]> Key => lines.
@@ -262,6 +273,12 @@ function shawesome_robots_txt_woo_lines( $site_id ) {
 		$lines[ $key ] = array( 'Disallow: /' . ( $uri ? $uri : $page[1] ) . '/' );
 	}
 	$lines['add_to_cart'] = array( 'Disallow: /*?add-to-cart=' );
+
+	$uploads          = untrailingslashit( (string) wp_parse_url( wp_upload_dir( null, false )['baseurl'], PHP_URL_PATH ) );
+	$lines['uploads'] = array();
+	foreach ( array( 'wc-logs', 'woocommerce_transient_files', 'woocommerce_uploads' ) as $folder ) {
+		$lines['uploads'][] = 'Disallow: ' . $uploads . '/' . $folder . '/';
+	}
 
 	if ( is_multisite() ) {
 		restore_current_blog();

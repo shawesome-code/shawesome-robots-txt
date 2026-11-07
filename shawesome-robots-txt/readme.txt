@@ -34,7 +34,7 @@ The editor of each site also sets the mode (see below) and two groups of options
 
 * resources and assets: CSS and JavaScript files, images and PDF files are allowed unless checked
 * WordPress cleanup: internal search results, reply links of comments, feeds of posts and archives
-* WooCommerce (when active): cart, checkout, my account and "add to cart" links
+* WooCommerce (when active): cart, checkout, my account, "add to cart" links and the folders for logs and downloadable files
 * the sitemap: by default, a Sitemap line for the sitemap of Yoast SEO, Rank Math, All in One SEO or WordPress (if its sitemaps are enabled) is added, unless the robots.txt already links it; it can be left out
 
 These lines are added at the end of the robots.txt, in both modes: blocked crawlers as a group of their own, everything else as a group for all crawlers (`User-agent: *`), which crawlers with a group of their own do not read. Like all of robots.txt, this only works with crawlers that follow it.
