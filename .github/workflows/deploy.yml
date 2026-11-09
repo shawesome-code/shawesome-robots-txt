@@ -1,0 +1,30 @@
+name: Deploy to WordPress.org
+
+on:
+  release:
+    types: [released]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check that the tag matches the stable tag
+        run: |
+          stable=$(grep -m1 '^Stable tag:' shawesome-robots-txt/readme.txt | awk '{print $3}')
+          if [ "$stable" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match Stable tag $stable in readme.txt" >&2
+            exit 1
+          fi
+
+      - name: Deploy plugin to WordPress.org
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: shawesome-robots-txt
+          BUILD_DIR: shawesome-robots-txt

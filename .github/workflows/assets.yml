@@ -1,0 +1,42 @@
+name: Update readme and assets on WordPress.org
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - shawesome-robots-txt/readme.txt
+      - .wordpress-org/**
+
+permissions:
+  contents: read
+
+jobs:
+  assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Only update released versions; a new version is deployed by deploy.yml.
+      - name: Check that the stable tag is released
+        id: released
+        run: |
+          stable=$(grep -m1 '^Stable tag:' shawesome-robots-txt/readme.txt | awk '{print $3}')
+          if curl -sfI "https://plugins.svn.wordpress.org/shawesome-robots-txt/tags/$stable/" > /dev/null; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Stable tag $stable is not released yet, skipping."
+          fi
+
+      # The action reads readme.txt from the repository root.
+      - name: Copy readme.txt to the root
+        if: steps.released.outputs.yes == 'true'
+        run: cp shawesome-robots-txt/readme.txt readme.txt
+
+      - name: Update readme and assets
+        if: steps.released.outputs.yes == 'true'
+        uses: 10up/action-wordpress-plugin-asset-update@stable
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: shawesome-robots-txt
+          IGNORE_OTHER_FILES: true
