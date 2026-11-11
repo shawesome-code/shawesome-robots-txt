@@ -6,7 +6,7 @@
  * - Overview: filter by status, search, file override rows, notice.
  * - FAQ: open the question named in the URL hash.
  * - Forms with a save bar: unsaved changes, discard, leave warning.
- * - Editor: preview after save, live view and summaries of the options.
+ * - Editor: preview after save, live view, summaries of the options and open option groups.
  */
 ( function ( c ) {
 	'use strict';
@@ -255,13 +255,18 @@
 		};
 	} );
 
-	// Settings: confirm before "Blocking" becomes the default mode.
+	// Settings: confirm a new default mode that switches more than one site, otherwise only "Blocking".
 	var settings = document.querySelector( '.shrt-settings' );
 	if ( settings ) {
-		var savedMode = ( settings.querySelector( 'input[name="mode"]:checked' ) || {} ).value;
+		var savedMode = ( settings.querySelector( 'input[name="mode"]:checked' ) || {} ).value,
+			confirmSites = settings.getAttribute( 'data-confirm-sites' );
 		settings.addEventListener( 'submit', function ( e ) {
-			var picked = settings.querySelector( 'input[name="mode"]:checked' );
-			if ( picked && 'block' === picked.value && 'block' !== savedMode && ! window.confirm( c.labels.confirmBlock ) ) {
+			var picked = settings.querySelector( 'input[name="mode"]:checked' ),
+				question = '';
+			if ( picked && picked.value !== savedMode ) {
+				question = confirmSites ? confirmSites.replace( '%s', picked.getAttribute( 'data-label' ) ) : ( 'block' === picked.value ? c.labels.confirmBlock : '' );
+			}
+			if ( question && ! window.confirm( question ) ) {
 				e.preventDefault();
 				e.stopImmediatePropagation();
 			}
@@ -458,6 +463,30 @@
 				other.setAttribute( 'aria-pressed', other === button ? 'true' : 'false' );
 			} );
 			render();
+		} );
+	} );
+
+	// Option groups: remember which ones the viewer opened or closed (per browser, may be unavailable).
+	var groupsKey = 'shawesomeRobotsTxtGroups',
+		groups = {};
+	try {
+		groups = JSON.parse( window.localStorage.getItem( groupsKey ) ) || {};
+	} catch ( err ) {}
+	all( 'details.shrt-group', form ).forEach( function ( details ) {
+		// The first field names the group, independent of the language and of groups shown only sometimes.
+		var input = details.querySelector( 'input' ),
+			key = input ? input.name + '=' + input.value : '';
+		if ( ! key ) {
+			return;
+		}
+		if ( 'boolean' === typeof groups[ key ] ) {
+			details.open = groups[ key ];
+		}
+		details.addEventListener( 'toggle', function () {
+			groups[ key ] = details.open;
+			try {
+				window.localStorage.setItem( groupsKey, JSON.stringify( groups ) );
+			} catch ( err ) {}
 		} );
 	} );
 

@@ -3,7 +3,7 @@
  * Plugin Name:         shawesome robots.txt – Per-Site Rules for Single Sites and Multisite
  * Plugin URI:          https://github.com/shawesome-code/shawesome-robots-txt
  * Description:         Its own robots.txt for a single site or for every site of a multisite network – edited in the admin, or deployed as a file to /wp-content/shawesome-robots-txt/ (e.g. www.example.com → www-example-com.txt), which takes precedence.
- * Version:             1.0.0
+ * Version:             1.1.0
  * Requires at least:   6.4
  * Requires PHP:        7.4
  * Author:              shawesome
@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SHAWESOME_ROBOTS_TXT_VERSION', '1.0.0' );
+define( 'SHAWESOME_ROBOTS_TXT_VERSION', '1.1.0' );
 define( 'SHAWESOME_ROBOTS_TXT_OPTION', 'shawesome_robots_txt_settings' );
 define( 'SHAWESOME_ROBOTS_TXT_CONTENT_OPTION', 'shawesome_robots_txt_content' );
 define( 'SHAWESOME_ROBOTS_TXT_MODE_OPTION', 'shawesome_robots_txt_mode' );

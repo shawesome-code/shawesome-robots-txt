@@ -166,9 +166,7 @@ function shawesome_robots_txt_load_page() {
 						'noneBlocked'  => __( 'None blocked', 'shawesome-robots-txt' ),
 						'added'        => __( 'Added', 'shawesome-robots-txt' ),
 						'notAdded'     => __( 'Not added', 'shawesome-robots-txt' ),
-						'confirmBlock' => is_multisite()
-							? __( 'Make "Blocking" the default mode? All crawlers will be blocked on every site that does not set its own mode, and search engines will drop these sites.', 'shawesome-robots-txt' )
-							: __( 'Make "Blocking" the default mode? All crawlers will be blocked on this site, and search engines will drop it.', 'shawesome-robots-txt' ),
+						'confirmBlock' => __( 'Make "Blocking" the default mode? All crawlers will be blocked on every site that does not set its own mode, and search engines will drop these sites.', 'shawesome-robots-txt' ),
 						'dirty'        => __( 'Unsaved changes', 'shawesome-robots-txt' ),
 						'loopback'     => __( 'The server could not request its own robots.txt (loopback request), so the remaining sites were not checked. Some servers block such requests.', 'shawesome-robots-txt' ),
 					),
@@ -468,8 +466,8 @@ function shawesome_robots_txt_status_html( $items, $status, $format = 'lines' ) 
  * AJAX: check the robots.txt of a site and return its status HTML.
  */
 function shawesome_robots_txt_ajax_scan() {
-	check_ajax_referer( 'shawesome_robots_txt_scan' );
 	shawesome_robots_txt_check_cap();
+	check_ajax_referer( 'shawesome_robots_txt_scan' );
 
 	$site_id = shawesome_robots_txt_posted_site_id();
 	$format  = isset( $_POST['format'] ) && 'pills' === $_POST['format'] ? 'pills' : 'lines';
@@ -494,8 +492,8 @@ add_action( 'wp_ajax_shawesome_robots_txt_scan', 'shawesome_robots_txt_ajax_scan
  * AJAX: hide the notice about SEO plugins in "Base" mode for the current user.
  */
 function shawesome_robots_txt_ajax_dismiss() {
-	check_ajax_referer( 'shawesome_robots_txt_dismiss' );
 	shawesome_robots_txt_check_cap();
+	check_ajax_referer( 'shawesome_robots_txt_dismiss' );
 
 	update_user_meta( get_current_user_id(), 'shawesome_robots_txt_dismissed', 1 );
 	wp_send_json_success();
@@ -575,16 +573,17 @@ function shawesome_robots_txt_form_fields( $action, $nonce ) {
  * Save the settings.
  */
 function shawesome_robots_txt_save_settings() {
-	check_admin_referer( 'shawesome_robots_txt_save' );
 	shawesome_robots_txt_check_cap();
+	check_admin_referer( 'shawesome_robots_txt_save' );
 
-	$mode     = isset( $_POST['mode'] ) ? sanitize_key( wp_unslash( $_POST['mode'] ) ) : 'base';
+	$mode     = isset( $_POST['mode'] ) ? sanitize_key( wp_unslash( $_POST['mode'] ) ) : '';
 	$settings = shawesome_robots_txt_get_settings();
 
 	update_site_option(
 		SHAWESOME_ROBOTS_TXT_OPTION,
 		array(
-			'mode'           => in_array( $mode, array( 'exact', 'base', 'block' ), true ) ? $mode : 'base',
+			// The default mode is only shown in networks; keep it otherwise.
+			'mode'           => in_array( $mode, array( 'exact', 'base', 'block' ), true ) ? $mode : $settings['mode'],
 			'respect_public' => ! empty( $_POST['respect_public'] ),
 			// The option is only shown in networks with subdirectories; keep it otherwise.
 			'path_sites'     => isset( $_POST['path_sites_shown'] ) ? ! empty( $_POST['path_sites'] ) : $settings['path_sites'],
@@ -624,9 +623,9 @@ function shawesome_robots_txt_redirect_to_site( $site_id, $updated ) {
  * Save a site's robots.txt content.
  */
 function shawesome_robots_txt_save_site() {
+	shawesome_robots_txt_check_cap();
 	$site_id = shawesome_robots_txt_posted_site_id();
 	check_admin_referer( 'shawesome_robots_txt_save_site_' . $site_id );
-	shawesome_robots_txt_check_cap();
 
 	// robots.txt is served as text/plain and may contain characters such as
 	// "%" or "*" that sanitize_textarea_field() would alter, so only invalid
@@ -643,7 +642,13 @@ function shawesome_robots_txt_save_site() {
 	}
 
 	$mode = isset( $_POST['site_mode'] ) ? sanitize_key( wp_unslash( $_POST['site_mode'] ) ) : '';
-	shawesome_robots_txt_set_site_option( $site_id, SHAWESOME_ROBOTS_TXT_MODE_OPTION, in_array( $mode, array( 'base', 'exact', 'block' ), true ) ? $mode : '' );
+	$mode = in_array( $mode, array( 'base', 'exact', 'block' ), true ) ? $mode : '';
+	// A single site has no default mode apart from its own: the editor sets the mode of the settings.
+	if ( ! is_multisite() && '' !== $mode ) {
+		update_site_option( SHAWESOME_ROBOTS_TXT_OPTION, array_merge( shawesome_robots_txt_get_settings(), array( 'mode' => $mode ) ) );
+		$mode = '';
+	}
+	shawesome_robots_txt_set_site_option( $site_id, SHAWESOME_ROBOTS_TXT_MODE_OPTION, $mode );
 
 	shawesome_robots_txt_set_site_option( $site_id, SHAWESOME_ROBOTS_TXT_RULES_OPTION, shawesome_robots_txt_posted_rules() );
 
@@ -694,8 +699,8 @@ function shawesome_robots_txt_posted_rules() {
  * the preview in the editor. Built by the same function as the robots.txt.
  */
 function shawesome_robots_txt_ajax_preview() {
-	check_ajax_referer( 'shawesome_robots_txt_preview' );
 	shawesome_robots_txt_check_cap();
+	check_ajax_referer( 'shawesome_robots_txt_preview' );
 
 	$site_id = shawesome_robots_txt_posted_site_id();
 	$output  = isset( $_POST['rules_text'] ) ? (string) wp_unslash( $_POST['rules_text'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- only searched for the sitemap URL.
@@ -708,9 +713,9 @@ add_action( 'wp_ajax_shawesome_robots_txt_preview', 'shawesome_robots_txt_ajax_p
  * Copy a site's override file into the database.
  */
 function shawesome_robots_txt_import_file() {
+	shawesome_robots_txt_check_cap();
 	$site_id = shawesome_robots_txt_posted_site_id();
 	check_admin_referer( 'shawesome_robots_txt_import_' . $site_id );
-	shawesome_robots_txt_check_cap();
 
 	$file    = shawesome_robots_txt_find_file( shawesome_robots_txt_host( $site_id ) );
 	$content = null === $file ? null : shawesome_robots_txt_read_file( $file );
@@ -774,8 +779,8 @@ function shawesome_robots_txt_can_rename_physical() {
  * database of the main site or the single site.
  */
 function shawesome_robots_txt_rename_physical() {
-	check_admin_referer( 'shawesome_robots_txt_physical' );
 	shawesome_robots_txt_check_cap();
+	check_admin_referer( 'shawesome_robots_txt_physical' );
 
 	$file   = shawesome_robots_txt_physical_file();
 	$copy   = ! empty( $_POST['copy'] );
@@ -1006,7 +1011,31 @@ function shawesome_robots_txt_render_physical() {
 }
 
 /**
- * Render the settings: default mode as cards, behaviour as switches, and a
+ * Number of sites that follow the default mode, out of all sites that serve
+ * their own robots.txt (only for those the mode matters).
+ *
+ * @return array{0: int, 1: int} Sites following the default mode, sites that serve their own robots.txt.
+ */
+function shawesome_robots_txt_default_mode_sites() {
+	$counts = array( 0, 0 );
+	foreach ( get_sites(
+		array(
+			'number'  => 0,
+			'deleted' => 0,
+			'fields'  => 'ids',
+		)
+	) as $site_id ) {
+		if ( shawesome_robots_txt_serves_own( (int) $site_id ) ) {
+			$counts[0] += '' === shawesome_robots_txt_site_mode( (int) $site_id ) ? 1 : 0;
+			++$counts[1];
+		}
+	}
+
+	return $counts;
+}
+
+/**
+ * Render the settings: default mode as cards (networks), behaviour as switches, and a
  * bar to save.
  *
  * @param string $updated Result of the last action.
@@ -1039,15 +1068,27 @@ function shawesome_robots_txt_render_settings( $updated = '' ) {
 			),
 		),
 	);
+	// On a single site the mode is chosen in the editor only.
+	$sites = is_multisite() ? shawesome_robots_txt_default_mode_sites() : null;
+	// Changing the default mode asks first if it switches more than one site.
+	$confirm = $sites && $sites[0] > 1
+		/* translators: 1: number of sites, 2: name of the new mode (the script fills it in) */
+		? sprintf( _n( 'Switch %1$s site to "%2$s"?', 'Switch %1$s sites to "%2$s"?', $sites[0], 'shawesome-robots-txt' ), number_format_i18n( $sites[0] ), '%s' )
+		: '';
 	?>
-	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="shrt-settings shrt-dirty">
+	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="shrt-settings shrt-dirty" data-confirm-sites="<?php echo esc_attr( $confirm ); ?>">
 		<?php shawesome_robots_txt_form_fields( 'save', 'shawesome_robots_txt_save' ); ?>
 
+		<?php if ( $sites ) : ?>
 		<section class="shrt-card">
 			<header class="shrt-card__head">
 				<div class="shrt-card__title">
 					<h2><?php esc_html_e( 'Default mode', 'shawesome-robots-txt' ); ?></h2>
-					<span><?php echo esc_html( is_multisite() ? __( 'Used by every site that does not set its own mode in the editor.', 'shawesome-robots-txt' ) : __( 'Used unless the editor sets another mode.', 'shawesome-robots-txt' ) ); ?></span>
+					<span>
+						<?php esc_html_e( 'Used by every site that does not set its own mode in the editor.', 'shawesome-robots-txt' ); ?>
+						<?php /* translators: 1: number of sites following the default mode, 2: number of sites that serve their own robots.txt */ ?>
+						<?php echo esc_html( sprintf( _n( 'Used by %1$s of %2$s site.', 'Used by %1$s of %2$s sites.', $sites[1], 'shawesome-robots-txt' ), number_format_i18n( $sites[0] ), number_format_i18n( $sites[1] ) ) ); ?>
+					</span>
 				</div>
 			</header>
 			<fieldset class="shrt-modes shrt-modes--wide">
@@ -1055,7 +1096,7 @@ function shawesome_robots_txt_render_settings( $updated = '' ) {
 				<?php foreach ( $modes as $value => $mode ) : ?>
 					<label class="shrt-mode<?php echo 'block' === $value ? ' shrt-mode--block' : ''; ?>">
 						<span class="shrt-mode__title">
-							<input type="radio" name="mode" value="<?php echo esc_attr( $value ); ?>" <?php checked( $settings['mode'], $value ); ?>>
+							<input type="radio" name="mode" value="<?php echo esc_attr( $value ); ?>" data-label="<?php echo esc_attr( shawesome_robots_txt_mode_label( $value ) ); ?>" <?php checked( $settings['mode'], $value ); ?>>
 							<?php echo esc_html( shawesome_robots_txt_mode_label( $value ) ); ?>
 							<?php if ( $mode['rec'] ) : ?>
 								<span class="shrt-tag"><?php esc_html_e( 'recommended', 'shawesome-robots-txt' ); ?></span>
@@ -1071,6 +1112,7 @@ function shawesome_robots_txt_render_settings( $updated = '' ) {
 				<?php endforeach; ?>
 			</fieldset>
 		</section>
+		<?php endif; ?>
 
 		<section class="shrt-card">
 			<header class="shrt-card__head">
@@ -1197,18 +1239,23 @@ function shawesome_robots_txt_render_editor( $site_id, $updated = '' ) {
 		);
 	}
 
-	$site_mode  = shawesome_robots_txt_site_mode( $site_id );
-	$rules      = shawesome_robots_txt_site_rules( $site_id );
-	$modes      = array(
-		''      => array(
-			__( 'Default', 'shawesome-robots-txt' ),
-			/* translators: %s: name of the default mode */
-			sprintf( __( 'Uses the "%s" mode from the settings.', 'shawesome-robots-txt' ), shawesome_robots_txt_mode_label( $settings['mode'] ) ),
-		),
+	// On a single site the editor sets the mode itself, without "Default".
+	$site_mode = is_multisite() ? shawesome_robots_txt_site_mode( $site_id ) : $mode;
+	$rules     = shawesome_robots_txt_site_rules( $site_id );
+	$modes     = array(
 		'base'  => array( shawesome_robots_txt_mode_label( 'base' ), __( 'Your rules replace the WordPress default; SEO plugins may still change them.', 'shawesome-robots-txt' ) ),
 		'exact' => array( shawesome_robots_txt_mode_label( 'exact' ), __( 'Delivered exactly as written. SEO plugins cannot change it.', 'shawesome-robots-txt' ) ),
 		'block' => array( shawesome_robots_txt_mode_label( 'block' ), __( 'Blocks all crawlers from all paths. Your rules and crawler options are kept, but not delivered. Not for live sites.', 'shawesome-robots-txt' ) ),
 	);
+	if ( is_multisite() ) {
+		$modes = array(
+			'' => array(
+				__( 'Default', 'shawesome-robots-txt' ),
+				/* translators: %s: name of the default mode */
+				sprintf( __( 'Uses the "%s" mode from the settings.', 'shawesome-robots-txt' ), shawesome_robots_txt_mode_label( $settings['mode'] ) ),
+			),
+		) + $modes;
+	}
 	$woo_active = shawesome_robots_txt_plugin_active( $site_id, 'woocommerce/woocommerce.php' );
 
 	$resource_lines = array();

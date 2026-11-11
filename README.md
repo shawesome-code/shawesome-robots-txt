@@ -36,7 +36,7 @@ Both plugins change the robots.txt output: Yoast SEO removes the WordPress defau
 - **Blocking** – all crawlers are blocked from all paths, e.g. for a staging site
 - **Exact** – the content is delivered as is, after all SEO plugins have run; sites without a custom robots.txt (no content in the editor and no file) keep the one from WordPress and the SEO plugins
 
-The default mode is set in the settings; each site can choose its own in its editor. In a network, the robots.txt tab lists all sites with their mode, the source of their robots.txt, the override file name, detected SEO plugins and a status (all crawlers blocked, sitemaps linked, AI training blocked, delivery problems), which is checked from the live robots.txt and kept for a configurable time.
+The mode is chosen in the editor. In a network, the default mode is set in the network settings and each site can choose its own in its editor; the robots.txt tab lists all sites with their mode, the source of their robots.txt, the override file name, detected SEO plugins and a status (all crawlers blocked, sitemaps linked, AI training blocked, delivery problems), which is checked from the live robots.txt and kept for a configurable time.
 
 ## For developers
 
