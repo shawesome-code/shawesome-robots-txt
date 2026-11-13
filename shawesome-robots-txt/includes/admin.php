@@ -529,6 +529,29 @@ add_filter(
 );
 
 /**
+ * Link the WordPress.org page and the reviews in the plugin row. Temporary
+ * until the plugin bundles shawesome-wordpress-admin 1.0.3, which adds these
+ * links for all shawesome plugins: skipped if another plugin loaded it.
+ *
+ * @param string[] $meta Row meta links.
+ * @param string   $file Plugin file.
+ * @param array    $data Plugin data.
+ * @return string[]
+ */
+function shawesome_robots_txt_row_meta( $meta, $file, $data ) {
+	if ( empty( $data['slug'] ) || plugin_basename( dirname( __DIR__ ) . '/shawesome-robots-txt.php' ) !== $file || function_exists( 'shawesome_admin_plugin_row_meta' ) ) {
+		return $meta;
+	}
+
+	$url    = 'https://wordpress.org/plugins/' . $data['slug'] . '/';
+	$meta[] = '<a href="' . esc_url( $url ) . '" target="_blank">' . esc_html__( 'WordPress.org Plugin Page &#187;', 'shawesome-robots-txt' ) . '</a>';
+	$meta[] = '<a href="' . esc_url( $url . '#reviews' ) . '" target="_blank">' . esc_html__( 'Reviews', 'shawesome-robots-txt' ) . '</a>';
+
+	return $meta;
+}
+add_filter( 'plugin_row_meta', 'shawesome_robots_txt_row_meta', 10, 3 );
+
+/**
  * Check the capability for an action, die otherwise.
  */
 function shawesome_robots_txt_check_cap() {
