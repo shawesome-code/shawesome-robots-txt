@@ -3,7 +3,7 @@
  * Plugin Name:         shawesome robots.txt – Per-Site Rules for Single Sites and Multisite
  * Plugin URI:          https://github.com/shawesome-code/shawesome-robots-txt
  * Description:         Its own robots.txt for a single site or for every site of a multisite network – edited in the admin, or deployed as a file to /wp-content/shawesome-robots-txt/ (e.g. www.example.com → www-example-com.txt), which takes precedence.
- * Version:             1.1.0
+ * Version:             1.1.5
  * Requires at least:   6.4
  * Requires PHP:        7.4
  * Author:              shawesome
@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SHAWESOME_ROBOTS_TXT_VERSION', '1.1.0' );
+define( 'SHAWESOME_ROBOTS_TXT_VERSION', '1.1.5' );
 define( 'SHAWESOME_ROBOTS_TXT_OPTION', 'shawesome_robots_txt_settings' );
 define( 'SHAWESOME_ROBOTS_TXT_CONTENT_OPTION', 'shawesome_robots_txt_content' );
 define( 'SHAWESOME_ROBOTS_TXT_MODE_OPTION', 'shawesome_robots_txt_mode' );
@@ -916,6 +916,31 @@ function shawesome_robots_txt_register_filters() {
 	}
 }
 add_action( 'do_robotstxt', 'shawesome_robots_txt_register_filters' );
+
+/**
+ * Add the virtual robots.txt to a Simply Static export. Simply Static only
+ * exports a physical robots.txt, or the virtual one while one of its SEO
+ * integrations is active. Same conditions as Simply Static itself.
+ *
+ * @param array $urls Additional URLs of the export.
+ * @return array
+ */
+function shawesome_robots_txt_simply_static_urls( $urls ) {
+	$urls = (array) $urls;
+	$url  = home_url( '/robots.txt' );
+
+	if ( ! class_exists( 'Simply_Static\Util' )
+		|| ! apply_filters( 'ss_include_robots_txt_in_export', true )
+		|| file_exists( ABSPATH . 'robots.txt' )
+		|| Simply_Static\Util::is_url_excluded( $url ) ) {
+		return $urls;
+	}
+
+	$urls[] = $url;
+
+	return array_values( array_unique( $urls ) );
+}
+add_filter( 'ss_additional_urls', 'shawesome_robots_txt_simply_static_urls' );
 
 if ( is_admin() ) {
 	require_once __DIR__ . '/includes/admin.php';
