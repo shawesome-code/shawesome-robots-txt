@@ -151,7 +151,8 @@
 		}
 		element.setAttribute( 'aria-busy', 'true' );
 
-		return fetch( c.url, { method: 'POST', body: body, credentials: 'same-origin' } )
+		// Sitemap checks run in the background: requests the user starts go first.
+		return fetch( c.url, { method: 'POST', body: body, credentials: 'same-origin', priority: job.sitemap ? 'low' : 'auto' } )
 			.then( function ( response ) {
 				return response.json();
 			} )
