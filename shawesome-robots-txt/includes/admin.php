@@ -136,6 +136,7 @@ function shawesome_robots_txt_load_page() {
 				array(
 					'url'      => admin_url( 'admin-ajax.php' ),
 					'nonce'    => wp_create_nonce( 'shawesome_robots_txt_scan' ),
+					'parallel' => shawesome_robots_txt_concurrency(),
 					'preview'  => wp_create_nonce( 'shawesome_robots_txt_preview' ),
 					'dismiss'  => wp_create_nonce( 'shawesome_robots_txt_dismiss' ),
 					'scanning' => __( 'Checking …', 'shawesome-robots-txt' ),
@@ -206,18 +207,40 @@ function shawesome_robots_txt_mode_label( $mode ) {
 /**
  * Request the robots.txt of a site as crawlers get it.
  *
+ * A redirect is followed like crawlers do; the target host is recorded if it
+ * differs from the host of the site (http to https on the same host is fine).
+ *
  * @param int $site_id Site ID.
- * @return array{body: string|null, error: string, unreachable: bool} Body, or null and an error (message or HTTP
- *               status code); unreachable if no HTTP response came back (timeout, connection or DNS error).
+ * @return array{body: string|null, error: string, unreachable: bool, redirect: string, type: string} Body, or null
+ *               and an error (message or HTTP status code); unreachable if no HTTP response came back (timeout,
+ *               connection or DNS error); redirect is the other host or ''; type is the media type of the response.
  */
 function shawesome_robots_txt_fetch( $site_id ) {
-	$response = wp_remote_get( get_home_url( $site_id, 'robots.txt' ), array( 'timeout' => 5 ) );
+	$url      = get_home_url( $site_id, 'robots.txt' );
+	$response = wp_remote_get(
+		$url,
+		array(
+			'timeout'     => 5,
+			'redirection' => 0,
+		)
+	);
+	$redirect = '';
+
+	$location = is_wp_error( $response ) ? '' : wp_remote_retrieve_header( $response, 'location' );
+	if ( is_string( $location ) && '' !== $location ) {
+		$location = WP_Http::make_absolute_url( $location, $url );
+		$host     = strtolower( (string) wp_parse_url( $location, PHP_URL_HOST ) );
+		$redirect = shawesome_robots_txt_host( $site_id ) === $host ? '' : $host;
+		$response = wp_remote_get( $location, array( 'timeout' => 5 ) );
+	}
 
 	if ( is_wp_error( $response ) ) {
 		return array(
 			'body'        => null,
 			'error'       => $response->get_error_message(),
 			'unreachable' => true,
+			'redirect'    => $redirect,
+			'type'        => '',
 		);
 	}
 
@@ -228,13 +251,19 @@ function shawesome_robots_txt_fetch( $site_id ) {
 			/* translators: %d: HTTP status code */
 			'error'       => sprintf( __( 'HTTP status %d', 'shawesome-robots-txt' ), $code ),
 			'unreachable' => false,
+			'redirect'    => $redirect,
+			'type'        => '',
 		);
 	}
+
+	$type = wp_remote_retrieve_header( $response, 'content-type' );
 
 	return array(
 		'body'        => (string) wp_remote_retrieve_body( $response ),
 		'error'       => '',
 		'unreachable' => false,
+		'redirect'    => $redirect,
+		'type'        => is_string( $type ) ? strtolower( trim( explode( ';', $type )[0] ) ) : '',
 	);
 }
 
@@ -244,23 +273,48 @@ function shawesome_robots_txt_fetch( $site_id ) {
  * group that names it, otherwise the group for "*"; "Disallow: /" blocks it
  * unless the same group allows "/".
  *
+ * Also collects the sitemap URLs, the first syntax problem (with its line
+ * number), whether Googlebot has its own group next to rules for all
+ * crawlers and whether CSS or JavaScript is blocked for Googlebot.
+ *
  * @param string $robots_txt robots.txt content.
- * @return array{all_blocked: bool, sitemaps: int, ai_blocked: int, ai_total: int}
+ * @return array{all_blocked: bool, google_blocked: bool, sitemaps: int, sitemap_urls: string[], ai_blocked: int, ai_total: int, seo_blocked: int, seo_total: int, syntax: array{0: int, 1: string, 2: string}|null, google_group: bool, css_js_blocked: bool}
+ *               syntax: line number, problem ('typo', 'colon', 'before_agent', 'noindex', 'host') and directive.
  */
 function shawesome_robots_txt_analyze( $robots_txt ) {
 	$groups    = array();
 	$in_agents = false;
-	$sitemaps  = 0;
+	$sitemaps  = array();
+	$syntax    = null;
+	$known     = array( 'user-agent', 'allow', 'disallow', 'sitemap', 'crawl-delay' );
 
-	foreach ( preg_split( '/\r\n|\r|\n/', $robots_txt ) as $line ) {
+	foreach ( preg_split( '/\r\n|\r|\n/', $robots_txt ) as $number => $line ) {
 		if ( ! preg_match( '/^\s*([a-z-]+)\s*:\s*([^#]*)/i', $line, $match ) ) {
+			if ( ! $syntax && '' !== trim( explode( '#', $line )[0] ) && false === strpos( $line, ':' ) ) {
+				$syntax = array( $number + 1, 'colon', '' );
+			}
 			continue;
 		}
 		$key   = strtolower( $match[1] );
 		$value = trim( $match[2] );
 
+		if ( ! $syntax ) {
+			if ( in_array( $key, array( 'noindex', 'host' ), true ) ) {
+				$syntax = array( $number + 1, $key, $match[1] );
+			} elseif ( ! $groups && in_array( $key, array( 'allow', 'disallow' ), true ) ) {
+				$syntax = array( $number + 1, 'before_agent', $match[1] );
+			} elseif ( ! in_array( $key, $known, true ) ) {
+				foreach ( $known as $directive ) {
+					if ( levenshtein( $key, $directive ) <= 2 ) {
+						$syntax = array( $number + 1, 'typo', $match[1] );
+						break;
+					}
+				}
+			}
+		}
+
 		if ( 'sitemap' === $key ) {
-			++$sitemaps;
+			$sitemaps[] = $value;
 		} elseif ( 'user-agent' === $key ) {
 			if ( ! $in_agents ) {
 				$groups[] = array(
@@ -279,7 +333,8 @@ function shawesome_robots_txt_analyze( $robots_txt ) {
 		}
 	}
 
-	$blocked = function ( $agent ) use ( $groups ) {
+	// Rules of the group a crawler follows: the one naming it, otherwise the one for "*".
+	$rules_for = function ( $agent ) use ( $groups ) {
 		$own = array();
 		foreach ( array( strtolower( $agent ), '*' ) as $name ) {
 			foreach ( $groups as $group ) {
@@ -292,8 +347,29 @@ function shawesome_robots_txt_analyze( $robots_txt ) {
 			}
 		}
 
+		return $own;
+	};
+
+	$blocked = function ( $agent ) use ( $rules_for ) {
+		$own = $rules_for( $agent );
+
 		return in_array( 'disallow:/', $own, true ) && ! in_array( 'allow:/', $own, true );
 	};
+
+	$css_js_blocked = false;
+	foreach ( $rules_for( 'googlebot' ) as $rule ) {
+		$path = 0 === strpos( $rule, 'disallow:' ) ? substr( $rule, 9 ) : '';
+		if ( in_array( untrailingslashit( $path ), array( '/wp-content', '/wp-includes', '/wp-content/themes', '/wp-content/plugins' ), true ) || preg_match( '/\.(css|js)\b/i', $path ) ) {
+			$css_js_blocked = true;
+		}
+	}
+
+	$google_group = false;
+	$star_rules   = false;
+	foreach ( $groups as $group ) {
+		$google_group = $google_group || in_array( 'googlebot', $group['agents'], true );
+		$star_rules   = $star_rules || ( in_array( '*', $group['agents'], true ) && $group['rules'] );
+	}
 
 	$ai_blocked = 0;
 	foreach ( shawesome_robots_txt_ai_agents() as $agent ) {
@@ -308,34 +384,189 @@ function shawesome_robots_txt_analyze( $robots_txt ) {
 	return array(
 		'all_blocked'    => $blocked( '*' ),
 		'google_blocked' => $blocked( 'Googlebot' ),
-		'sitemaps'       => $sitemaps,
+		'sitemaps'       => count( $sitemaps ),
+		'sitemap_urls'   => $sitemaps,
 		'ai_blocked'     => $ai_blocked,
 		'ai_total'       => count( shawesome_robots_txt_ai_agents() ),
 		'seo_blocked'    => $seo_blocked,
 		'seo_total'      => count( shawesome_robots_txt_group_agents( 'seo' ) ),
+		'syntax'         => $syntax,
+		'google_group'   => $google_group && $star_rules,
+		'css_js_blocked' => $css_js_blocked,
 	);
 }
 
 /**
+ * Allow and Disallow lines of a robots.txt, normalized ("disallow:/path").
+ *
+ * @param string $robots_txt robots.txt content.
+ * @return string[]
+ */
+function shawesome_robots_txt_rule_lines( $robots_txt ) {
+	preg_match_all( '/^\s*(allow|disallow)\s*:\s*([^#\r\n]*)/im', $robots_txt, $matches, PREG_SET_ORDER );
+
+	return array_map(
+		function ( $found ) {
+			return strtolower( $found[1] ) . ':' . trim( $found[2] );
+		},
+		$matches
+	);
+}
+
+/**
+ * Lines of a robots.txt without trailing whitespace and trailing empty lines.
+ *
+ * @param string $robots_txt robots.txt content.
+ * @return string[]
+ */
+function shawesome_robots_txt_text_lines( $robots_txt ) {
+	return array_map( 'rtrim', preg_split( '/\r\n|\r|\n/', rtrim( $robots_txt ) ) );
+}
+
+/**
+ * Whether the rules saved for a site are missing in its live robots.txt
+ * (cache, CDN, physical file, another plugin). "Exact" compares the whole
+ * file, "Base" only whether every own Allow and Disallow line is there, as
+ * SEO plugins may change the rest. Not checked in "Blocking", for sites that
+ * do not serve their own robots.txt and without own rules.
+ *
+ * @param int    $site_id Site ID.
+ * @param string $live    Live robots.txt.
+ * @return bool
+ */
+function shawesome_robots_txt_not_live( $site_id, $live ) {
+	$mode = shawesome_robots_txt_mode( $site_id );
+	if ( 'block' === $mode || shawesome_robots_txt_hidden_blocked( $site_id ) || ! shawesome_robots_txt_serves_own( $site_id ) ) {
+		return false;
+	}
+
+	$resolved = shawesome_robots_txt_resolve( $site_id );
+	if ( null === $resolved['content'] || '' === $resolved['content'] ) {
+		return false;
+	}
+
+	if ( 'exact' !== $mode ) {
+		return (bool) array_diff( shawesome_robots_txt_rule_lines( $resolved['content'] ), shawesome_robots_txt_rule_lines( $live ) );
+	}
+
+	// The added rules depend on the current site.
+	if ( is_multisite() ) {
+		switch_to_blog( $site_id );
+	}
+	$expected = shawesome_robots_txt_filter_added_rules( $resolved['content'] );
+	if ( is_multisite() ) {
+		restore_current_blog();
+	}
+
+	return shawesome_robots_txt_text_lines( $expected ) !== shawesome_robots_txt_text_lines( $live );
+}
+
+/**
+ * First host of a sitemap URL that is not the host of the site, or ''.
+ *
+ * @param int      $site_id Site ID.
+ * @param string[] $urls    Sitemap URLs.
+ * @return string
+ */
+function shawesome_robots_txt_foreign_sitemap_host( $site_id, $urls ) {
+	foreach ( $urls as $url ) {
+		$host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
+		if ( '' !== $host && shawesome_robots_txt_host( $site_id ) !== $host ) {
+			return $host;
+		}
+	}
+
+	return '';
+}
+
+/**
  * Check the robots.txt of a site and store the result with a timestamp.
+ * Results of sitemap checks are kept for sitemaps that are still linked,
+ * unless $fresh is set.
  *
  * @param int        $site_id Site ID.
  * @param array|null $fetched Result of shawesome_robots_txt_fetch(), if already requested.
- * @return array Status: time, error and the result of shawesome_robots_txt_analyze().
+ * @param bool       $fresh   Whether to check all sitemaps again.
+ * @return array Status: time, error, redirect, content type, the result of
+ *               shawesome_robots_txt_analyze(), not_live, foreign_host and sitemap_checks.
  */
-function shawesome_robots_txt_scan( $site_id, $fetched = null ) {
+function shawesome_robots_txt_scan( $site_id, $fetched = null, $fresh = false ) {
 	$fetched = $fetched ? $fetched : shawesome_robots_txt_fetch( $site_id );
 	$status  = array(
-		'time'  => time(),
-		'error' => $fetched['error'],
+		'time'     => time(),
+		'error'    => $fetched['error'],
+		'redirect' => $fetched['redirect'],
+		'type'     => $fetched['type'],
 	);
 	if ( null !== $fetched['body'] ) {
 		$status += shawesome_robots_txt_analyze( $fetched['body'] );
+
+		$old                      = $fresh ? null : shawesome_robots_txt_get_status( $site_id );
+		$checks                   = $old && isset( $old['sitemap_checks'] ) ? $old['sitemap_checks'] : array();
+		$status['not_live']       = shawesome_robots_txt_not_live( $site_id, $fetched['body'] );
+		$status['foreign_host']   = shawesome_robots_txt_foreign_sitemap_host( $site_id, $status['sitemap_urls'] );
+		$status['sitemap_checks'] = array_intersect_key( $checks, array_flip( $status['sitemap_urls'] ) );
 	}
 
 	shawesome_robots_txt_set_site_option( $site_id, SHAWESOME_ROBOTS_TXT_STATUS_OPTION, $status );
 
 	return $status;
+}
+
+/**
+ * Sitemaps of a status without a current check result.
+ *
+ * @param array|null $status Status.
+ * @return string[]
+ */
+function shawesome_robots_txt_pending_sitemaps( $status ) {
+	if ( ! $status || empty( $status['sitemap_urls'] ) ) {
+		return array();
+	}
+
+	$settings = shawesome_robots_txt_get_settings();
+	$checks   = isset( $status['sitemap_checks'] ) ? $status['sitemap_checks'] : array();
+
+	return array_values(
+		array_filter(
+			$status['sitemap_urls'],
+			function ( $url ) use ( $checks, $settings ) {
+				return ! isset( $checks[ $url ] ) || $checks[ $url ]['time'] + $settings['status_hours'] * HOUR_IN_SECONDS < time();
+			}
+		)
+	);
+}
+
+/**
+ * Request a sitemap: HEAD, or GET if the server does not support HEAD.
+ *
+ * @param string $url Sitemap URL.
+ * @return string '' if reachable, otherwise the error (message or HTTP status code).
+ */
+function shawesome_robots_txt_check_sitemap( $url ) {
+	if ( ! preg_match( '#^https?://#i', $url ) ) {
+		return __( 'Invalid URL', 'shawesome-robots-txt' );
+	}
+
+	$response = wp_remote_head( $url, array( 'timeout' => 5 ) );
+	$code     = (int) wp_remote_retrieve_response_code( $response );
+	if ( in_array( $code, array( 405, 501 ), true ) ) {
+		$response = wp_remote_get(
+			$url,
+			array(
+				'timeout'             => 5,
+				'limit_response_size' => 1024,
+			)
+		);
+		$code     = (int) wp_remote_retrieve_response_code( $response );
+	}
+
+	if ( is_wp_error( $response ) ) {
+		return $response->get_error_message();
+	}
+
+	/* translators: %d: HTTP status code */
+	return 404 === $code || 410 === $code || $code >= 500 ? sprintf( __( 'HTTP status %d', 'shawesome-robots-txt' ), $code ) : '';
 }
 
 /**
@@ -387,18 +618,61 @@ function shawesome_robots_txt_status_items( $site_id, $status ) {
 		/* translators: %s: error message or HTTP status code */
 		$items[] = array( 'bad', esc_html( sprintf( __( 'Not reachable (%s)', 'shawesome-robots-txt' ), $status['error'] ) ) );
 	} else {
+		if ( ! empty( $status['not_live'] ) ) {
+			$items[] = array( 'bad', esc_html__( 'Your rules are not live', 'shawesome-robots-txt' ) );
+		}
+		if ( ! empty( $status['redirect'] ) ) {
+			/* translators: %s: host name */
+			$items[] = array( 'warn', esc_html( sprintf( __( 'Redirects to another host (%s)', 'shawesome-robots-txt' ), $status['redirect'] ) ) );
+		}
+		$wrong_type = ! empty( $status['type'] ) && 'text/plain' !== $status['type'];
+		if ( $wrong_type ) {
+			/* translators: %s: media type, e.g. text/html */
+			$items[] = array( 'warn', esc_html( sprintf( __( 'Not delivered as text/plain (%s)', 'shawesome-robots-txt' ), $status['type'] ) ) );
+		}
+
 		if ( $status['all_blocked'] && ( 'block' === shawesome_robots_txt_mode( $site_id ) || shawesome_robots_txt_hidden_blocked( $site_id ) ) ) {
 			$items[] = array( 'warn', esc_html__( 'All crawlers blocked ("Blocking")', 'shawesome-robots-txt' ) );
 		} elseif ( $status['all_blocked'] ) {
 			$items[] = array( 'bad', esc_html__( 'All crawlers blocked', 'shawesome-robots-txt' ) );
 		} elseif ( ! empty( $status['google_blocked'] ) ) {
 			$items[] = array( 'bad', esc_html__( 'Googlebot blocked', 'shawesome-robots-txt' ) );
+		} elseif ( ! empty( $status['css_js_blocked'] ) ) {
+			$items[] = array( 'warn', esc_html__( 'CSS or JavaScript blocked for Google', 'shawesome-robots-txt' ) );
+		}
+		if ( ! empty( $status['google_group'] ) ) {
+			$items[] = array( 'neutral', esc_html__( 'Googlebot has its own group and ignores the rules for all crawlers', 'shawesome-robots-txt' ) );
+		}
+		// An HTML page instead of a robots.txt would only add noise here.
+		if ( ! empty( $status['syntax'] ) && ! $wrong_type ) {
+			$items[] = array( 'warn', esc_html( shawesome_robots_txt_syntax_message( $status['syntax'] ) ) );
 		}
 
 		$items[] = $status['sitemaps']
 			/* translators: %d: number of Sitemap lines */
 			? array( 'good', esc_html( sprintf( _n( '%d sitemap linked', '%d sitemaps linked', $status['sitemaps'], 'shawesome-robots-txt' ), $status['sitemaps'] ) ) )
 			: array( 'warn', esc_html__( 'No sitemap linked', 'shawesome-robots-txt' ) );
+
+		if ( ! empty( $status['foreign_host'] ) ) {
+			/* translators: %s: host name */
+			$items[] = array( 'warn', esc_html( sprintf( __( 'Sitemap on another host (%s)', 'shawesome-robots-txt' ), $status['foreign_host'] ) ) );
+		}
+
+		$failed = array_filter( wp_list_pluck( isset( $status['sitemap_checks'] ) ? $status['sitemap_checks'] : array(), 'error' ) );
+		if ( $failed ) {
+			$items[] = array(
+				'bad',
+				esc_html(
+					sprintf(
+						/* translators: 1: number of sitemaps, 2: URL of the first one, 3: error message or HTTP status code */
+						_n( '%1$d sitemap not reachable: %2$s (%3$s)', '%1$d sitemaps not reachable, e.g. %2$s (%3$s)', count( $failed ), 'shawesome-robots-txt' ),
+						count( $failed ),
+						array_key_first( $failed ),
+						$failed[ array_key_first( $failed ) ]
+					)
+				),
+			);
+		}
 
 		if ( $status['ai_blocked'] === $status['ai_total'] ) {
 			$items[] = array( 'good', esc_html__( 'AI training blocked', 'shawesome-robots-txt' ) );
@@ -416,6 +690,34 @@ function shawesome_robots_txt_status_items( $site_id, $status ) {
 	}
 
 	return $items;
+}
+
+/**
+ * Message for the first syntax problem of a robots.txt.
+ *
+ * @param array{0: int, 1: string, 2: string} $syntax Line number, problem and directive, see shawesome_robots_txt_analyze().
+ * @return string
+ */
+function shawesome_robots_txt_syntax_message( $syntax ) {
+	list( $line, $problem, $directive ) = $syntax;
+
+	switch ( $problem ) {
+		case 'colon':
+			/* translators: %d: line number */
+			return sprintf( __( 'Line %d: no ":" – crawlers ignore it', 'shawesome-robots-txt' ), $line );
+		case 'before_agent':
+			/* translators: 1: line number, 2: directive, e.g. Disallow */
+			return sprintf( __( 'Line %1$d: "%2$s" before the first User-agent line – crawlers ignore it', 'shawesome-robots-txt' ), $line, $directive );
+		case 'noindex':
+			/* translators: %d: line number */
+			return sprintf( __( 'Line %d: "Noindex" is not supported by Google', 'shawesome-robots-txt' ), $line );
+		case 'host':
+			/* translators: %d: line number */
+			return sprintf( __( 'Line %d: "Host" is only read by Yandex', 'shawesome-robots-txt' ), $line );
+		default:
+			/* translators: 1: line number, 2: directive as written */
+			return sprintf( __( 'Line %1$d: unknown directive "%2$s" – a typo?', 'shawesome-robots-txt' ), $line, $directive );
+	}
 }
 
 /**
@@ -472,7 +774,7 @@ function shawesome_robots_txt_ajax_scan() {
 	$site_id = shawesome_robots_txt_posted_site_id();
 	$format  = isset( $_POST['format'] ) && 'pills' === $_POST['format'] ? 'pills' : 'lines';
 	$fetched = shawesome_robots_txt_fetch( $site_id );
-	$status  = shawesome_robots_txt_scan( $site_id, $fetched );
+	$status  = shawesome_robots_txt_scan( $site_id, $fetched, ! empty( $_POST['fresh'] ) );
 	$items   = shawesome_robots_txt_status_items( $site_id, $status );
 
 	wp_send_json_success(
@@ -483,10 +785,56 @@ function shawesome_robots_txt_ajax_scan() {
 			'live'        => $fetched['body'],
 			// No response at all: the script stops checking further sites (loopback requests are probably blocked).
 			'unreachable' => $fetched['unreachable'],
+			// Sitemaps still to check; the script queues them.
+			'sitemaps'    => count( shawesome_robots_txt_pending_sitemaps( $status ) ),
 		)
 	);
 }
 add_action( 'wp_ajax_shawesome_robots_txt_scan', 'shawesome_robots_txt_ajax_scan' );
+
+/**
+ * AJAX: check the next sitemap of a site without a current result and return
+ * the status HTML. The URL comes from the stored status, never from the
+ * request. The script calls it again while sitemaps are left, one request
+ * per site at a time.
+ */
+function shawesome_robots_txt_ajax_sitemap() {
+	shawesome_robots_txt_check_cap();
+	check_ajax_referer( 'shawesome_robots_txt_scan' );
+
+	$site_id = shawesome_robots_txt_posted_site_id();
+	$format  = isset( $_POST['format'] ) && 'pills' === $_POST['format'] ? 'pills' : 'lines';
+	$status  = shawesome_robots_txt_get_status( $site_id );
+	$pending = shawesome_robots_txt_pending_sitemaps( $status );
+
+	if ( $pending ) {
+		$status['sitemap_checks'][ $pending[0] ] = array(
+			'error' => shawesome_robots_txt_check_sitemap( $pending[0] ),
+			'time'  => time(),
+		);
+		shawesome_robots_txt_set_site_option( $site_id, SHAWESOME_ROBOTS_TXT_STATUS_OPTION, $status );
+	}
+
+	$items = shawesome_robots_txt_status_items( $site_id, $status );
+
+	wp_send_json_success(
+		array(
+			'html'     => shawesome_robots_txt_status_html( $items, $status, $format ),
+			'level'    => shawesome_robots_txt_status_level( $items ),
+			'sitemaps' => max( 0, count( $pending ) - 1 ),
+		)
+	);
+}
+add_action( 'wp_ajax_shawesome_robots_txt_sitemap', 'shawesome_robots_txt_ajax_sitemap' );
+
+/**
+ * How many checks the page runs at the same time (sites and sitemaps).
+ *
+ * @return int
+ */
+function shawesome_robots_txt_concurrency() {
+	return max( 1, (int) apply_filters( 'shawesome_robots_txt_concurrency', 2 ) );
+}
 
 /**
  * AJAX: hide the notice about SEO plugins in "Base" mode for the current user.
@@ -1810,7 +2158,7 @@ function shawesome_robots_txt_render_sites() {
 						</td>
 						<td><?php echo $seo ? esc_html( implode( ', ', $seo ) ) : '–'; ?></td>
 						<?php if ( $row['own'] ) : ?>
-							<td class="shrt-status" data-shrt-status="<?php echo esc_attr( (string) $site_id ); ?>" data-host="<?php echo esc_attr( $row['host'] ); ?>"<?php echo $check_all || shawesome_robots_txt_status_outdated( $row['status'] ) ? ' data-outdated' : ''; ?>>
+							<td class="shrt-status" data-shrt-status="<?php echo esc_attr( (string) $site_id ); ?>" data-host="<?php echo esc_attr( $row['host'] ); ?>"<?php echo $check_all || shawesome_robots_txt_status_outdated( $row['status'] ) ? ' data-outdated' : ( shawesome_robots_txt_pending_sitemaps( $row['status'] ) ? ' data-sitemaps' : '' ); ?>>
 								<?php echo shawesome_robots_txt_status_html( $row['items'], $row['status'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in shawesome_robots_txt_status_html(). ?>
 							</td>
 						<?php else : ?>

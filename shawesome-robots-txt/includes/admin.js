@@ -2,7 +2,7 @@
  * shawesome robots.txt – script of the plugin page.
  *
  * - Example rules button in the editor.
- * - Status: check sites with an outdated status, and on request.
+ * - Status: check sites with an outdated status, and on request, then their sitemaps (shared queue, c.parallel at a time).
  * - Overview: filter by status, search, file override rows, notice.
  * - FAQ: open the question named in the URL hash.
  * - Forms with a save bar: unsaved changes, discard, leave warning.
@@ -135,13 +135,20 @@
 		( document.querySelector( '.shrt-table-wrap' ) || element ).before( notice );
 	}
 
-	function scan( element ) {
-		var body = new FormData();
-		body.append( 'action', 'shawesome_robots_txt_scan' );
+	// One job checks a site or the next sitemap of a site.
+	function check( job ) {
+		var element = job.element,
+			body = new FormData();
+		body.append( 'action', job.sitemap ? 'shawesome_robots_txt_sitemap' : 'shawesome_robots_txt_scan' );
 		body.append( '_ajax_nonce', c.nonce );
 		body.append( 'site_id', element.getAttribute( 'data-shrt-status' ) );
 		body.append( 'format', element.getAttribute( 'data-format' ) || 'lines' );
-		element.textContent = c.scanning;
+		if ( job.fresh ) {
+			body.append( 'fresh', '1' );
+		}
+		if ( ! job.sitemap ) {
+			element.textContent = c.scanning;
+		}
 		element.setAttribute( 'aria-busy', 'true' );
 
 		return fetch( c.url, { method: 'POST', body: body, credentials: 'same-origin' } )
@@ -153,7 +160,9 @@
 					throw new Error();
 				}
 				element.innerHTML = json.data.html; // Escaped on the server.
-				element.dispatchEvent( new CustomEvent( 'shrt:live', { bubbles: true, detail: json.data.live } ) );
+				if ( ! job.sitemap ) {
+					element.dispatchEvent( new CustomEvent( 'shrt:live', { bubbles: true, detail: json.data.live } ) );
+				}
 				var row = element.closest( '.shrt-site' );
 				if ( row ) {
 					row.className = 'shrt-site is-' + json.data.level;
@@ -171,22 +180,43 @@
 			} );
 	}
 
-	function run( elements ) {
-		var i = 0;
-		stopped = false;
-		function next() {
-			if ( i >= elements.length || stopped ) {
-				return null;
-			}
-			var element = elements[ i++ ];
-			return scan( element ).then( function ( result ) {
-				if ( result && result.unreachable && ! stopped && i < elements.length && element.getAttribute( 'data-host' ) === window.location.hostname ) {
-					stop( element );
-				}
-				return next();
-			} );
+	// Shared queue for site and sitemap checks, at most c.parallel at the same time. The
+	// sitemaps of a site are queued one after another, so a site never has two requests
+	// running (they write the same stored status).
+	var queue = [],
+		active = 0;
+
+	function pump() {
+		while ( active < c.parallel && queue.length && ! stopped ) {
+			start( queue.shift() );
 		}
-		return Promise.all( [ next(), next(), next() ] );
+	}
+
+	function start( job ) {
+		active++;
+		check( job ).then( function ( result ) {
+			active--;
+			if ( result && result.unreachable && ! stopped && queue.length && job.element.getAttribute( 'data-host' ) === window.location.hostname ) {
+				queue = [];
+				stop( job.element );
+			} else if ( result && result.sitemaps ) {
+				queue.push( { element: job.element, sitemap: true } );
+			}
+			pump();
+		} );
+	}
+
+	function run( elements, sitemap, fresh ) {
+		stopped = false;
+		elements.forEach( function ( element ) {
+			var queued = queue.some( function ( job ) {
+				return job.element === element;
+			} );
+			if ( ! queued && ! element.hasAttribute( 'aria-busy' ) ) {
+				queue.push( { element: element, sitemap: sitemap, fresh: fresh } );
+			}
+		} );
+		pump();
 	}
 
 	document.addEventListener( 'click', function ( e ) {
@@ -195,10 +225,11 @@
 			return;
 		}
 		e.preventDefault();
-		run( 'all' === link.getAttribute( 'data-shrt-scan' ) ? all( '[data-shrt-status]' ) : [ link.closest( '[data-shrt-status]' ) ] );
+		run( 'all' === link.getAttribute( 'data-shrt-scan' ) ? all( '[data-shrt-status]' ) : [ link.closest( '[data-shrt-status]' ) ], false, true );
 	} );
 
-	run( all( '[data-shrt-status][data-outdated]' ) );
+	run( all( '[data-shrt-status][data-outdated]' ), false, false );
+	run( all( '[data-shrt-status][data-sitemaps]' ), true, false );
 
 	// FAQ: open the question named in the hash, e.g. #faq-not-delivered.
 	var question = window.location.hash ? document.getElementById( window.location.hash.slice( 1 ) ) : null;
