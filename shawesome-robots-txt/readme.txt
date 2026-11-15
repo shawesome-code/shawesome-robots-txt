@@ -4,7 +4,7 @@ Tags: robots.txt, multisite, seo, network, crawler
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.5
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Network: true
@@ -158,7 +158,7 @@ The settings and the content stored in the database are deleted. Files in `/wp-c
 
 == Changelog ==
 
-= Unreleased =
+= 1.2.0 =
 * Status: shows when your saved rules are not live, a sitemap is on another host or cannot be reached, CSS or JavaScript is blocked for Google, Googlebot has its own group, the robots.txt has a syntax problem, redirects to another host or is not delivered as text/plain.
 * Status: sitemaps are checked while the plugin page is open, two requests at a time.
 * New plugin icon.

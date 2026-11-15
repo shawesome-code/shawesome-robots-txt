@@ -3,7 +3,7 @@
 # This file is distributed under the same license as the plugin (GPL-2.0-or-later).
 msgid ""
 msgstr ""
-"Project-Id-Version: shawesome robots.txt 1.1.5\n"
+"Project-Id-Version: shawesome robots.txt 1.2.0\n"
 "Report-Msgid-Bugs-To: https://github.com/shawesome-code/shawesome-robots-txt/issues\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
